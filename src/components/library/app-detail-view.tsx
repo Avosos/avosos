@@ -18,13 +18,20 @@ import {
   Puzzle,
   RefreshCw,
   ChevronRight,
+  History,
+  ArrowUp,
+  Tag,
+  Zap,
+  Bug,
+  FileText,
+  Wrench,
 } from "lucide-react";
 import { useLauncherStore } from "@/stores/launcher-store";
 import { CATEGORY_META } from "@/lib/app-registry";
 import AppIcon from "@/components/icons/app-icon";
-import type { AppPlugin } from "@/types";
+import type { AppPlugin, ChangelogEntry } from "@/types";
 
-type DetailTab = "overview" | "versions" | "plugins" | "compatibility";
+type DetailTab = "overview" | "versions" | "plugins" | "compatibility" | "changelog";
 
 export default function AppDetailView() {
   const { selectedAppId, apps, setView, launchApp } = useLauncherStore();
@@ -233,6 +240,7 @@ export default function AppDetailView() {
           {(
             [
               { id: "overview", label: "Overview", icon: Package },
+              { id: "changelog", label: "Changelog", icon: History },
               { id: "versions", label: "Versions", icon: GitBranch },
               { id: "plugins", label: "Plugins", icon: Puzzle },
               { id: "compatibility", label: "Compatibility", icon: Shield },
@@ -277,6 +285,18 @@ export default function AppDetailView() {
                     {app.plugins.length}
                   </span>
                 )}
+                {tab.id === "changelog" && app.changelog && app.changelog.length > 0 && (
+                  <span
+                    style={{
+                      fontSize: 10,
+                      background: "var(--bg-hover)",
+                      padding: "1px 6px",
+                      borderRadius: 8,
+                    }}
+                  >
+                    {app.changelog.length}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -293,6 +313,7 @@ export default function AppDetailView() {
         }}
       >
         {activeTab === "overview" && <OverviewTab app={app} />}
+        {activeTab === "changelog" && <ChangelogTab app={app} />}
         {activeTab === "versions" && (
           <VersionsTab
             app={app}
@@ -458,6 +479,259 @@ function OverviewTab({ app }: { app: import("@/types").AppDefinition }) {
   );
 }
 
+/* ─── Changelog Tab ────────────────────────────────────── */
+
+const COMMIT_TYPE_CONFIG: Record<string, { label: string; color: string; icon: React.ComponentType<{ size?: number; style?: React.CSSProperties }> }> = {
+  feat: { label: "Feature", color: "#4ade80", icon: Zap },
+  fix: { label: "Fix", color: "#f87171", icon: Bug },
+  refactor: { label: "Refactor", color: "#a78bfa", icon: Wrench },
+  docs: { label: "Docs", color: "#60a5fa", icon: FileText },
+  perf: { label: "Perf", color: "#fbbf24", icon: Zap },
+  chore: { label: "Chore", color: "#94a3b8", icon: Settings },
+  style: { label: "Style", color: "#e879f9", icon: Package },
+  test: { label: "Test", color: "#2dd4bf", icon: Shield },
+  build: { label: "Build", color: "#fb923c", icon: Package },
+  ci: { label: "CI", color: "#818cf8", icon: RefreshCw },
+  revert: { label: "Revert", color: "#f43f5e", icon: RefreshCw },
+  other: { label: "Commit", color: "#64748b", icon: GitBranch },
+};
+
+function ChangelogTab({ app }: { app: import("@/types").AppDefinition }) {
+  const changelog = app.changelog ?? [];
+  const [filter, setFilter] = useState<string | null>(null);
+
+  const filtered = filter
+    ? changelog.filter((e) => e.type === filter)
+    : changelog;
+
+  // Group by date
+  const grouped = filtered.reduce<Record<string, ChangelogEntry[]>>(
+    (acc, entry) => {
+      const day = entry.date.split("T")[0];
+      if (!acc[day]) acc[day] = [];
+      acc[day].push(entry);
+      return acc;
+    },
+    {}
+  );
+
+  // Count types for filter chips
+  const typeCounts = changelog.reduce<Record<string, number>>((acc, e) => {
+    acc[e.type] = (acc[e.type] || 0) + 1;
+    return acc;
+  }, {});
+
+  return (
+    <div>
+      <div style={{ marginBottom: 16 }}>
+        <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
+          Changelog
+        </h3>
+        <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
+          Recent changes from the project's git history. Uses{" "}
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              window.electronAPI?.openExternal("https://www.conventionalcommits.org");
+            }}
+            style={{ color: "var(--accent)", textDecoration: "none" }}
+          >
+            Conventional Commits
+          </a>{" "}
+          for automatic categorization.
+        </p>
+      </div>
+
+      {/* Filter chips */}
+      {Object.keys(typeCounts).length > 1 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+          <button
+            className={filter === null ? "btn-primary" : "btn-secondary"}
+            style={{ padding: "4px 12px", fontSize: 11 }}
+            onClick={() => setFilter(null)}
+          >
+            All ({changelog.length})
+          </button>
+          {Object.entries(typeCounts)
+            .sort(([, a], [, b]) => b - a)
+            .map(([type, count]) => {
+              const cfg = COMMIT_TYPE_CONFIG[type] || COMMIT_TYPE_CONFIG.other;
+              return (
+                <button
+                  key={type}
+                  className={filter === type ? "btn-primary" : "btn-secondary"}
+                  style={{ padding: "4px 12px", fontSize: 11 }}
+                  onClick={() => setFilter(filter === type ? null : type)}
+                >
+                  {cfg.label} ({count})
+                </button>
+              );
+            })}
+        </div>
+      )}
+
+      {changelog.length === 0 ? (
+        <div
+          style={{
+            padding: "40px 20px",
+            textAlign: "center",
+            color: "var(--text-muted)",
+          }}
+        >
+          <History size={36} style={{ marginBottom: 12, opacity: 0.3 }} />
+          <div style={{ fontSize: 14, fontWeight: 500 }}>No changelog available</div>
+          <div style={{ fontSize: 12, marginTop: 4 }}>
+            This project may not have a git repository or no commits were found.
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {Object.entries(grouped).map(([date, entries]) => (
+            <div key={date}>
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: "var(--text-muted)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  marginBottom: 8,
+                  paddingBottom: 6,
+                  borderBottom: "1px solid var(--border-subtle)",
+                }}
+              >
+                {new Date(date + "T00:00:00").toLocaleDateString("en-US", {
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {entries.map((entry) => {
+                  const cfg = COMMIT_TYPE_CONFIG[entry.type] || COMMIT_TYPE_CONFIG.other;
+                  const Icon = cfg.icon;
+                  return (
+                    <div
+                      key={entry.hash}
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 10,
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        transition: "background 0.15s",
+                      }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.background = "var(--bg-hover)")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.background = "transparent")
+                      }
+                    >
+                      {/* Type badge */}
+                      <span
+                        className="badge"
+                        style={{
+                          background: cfg.color + "18",
+                          color: cfg.color,
+                          fontSize: 10,
+                          minWidth: 64,
+                          justifyContent: "center",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                          flexShrink: 0,
+                          marginTop: 1,
+                        }}
+                      >
+                        <Icon size={10} />
+                        {cfg.label}
+                      </span>
+
+                      {/* Message */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontSize: 13,
+                            color: "var(--text-primary)",
+                            fontWeight: entry.breaking ? 700 : 500,
+                          }}
+                        >
+                          {entry.breaking && (
+                            <span style={{ color: "#f43f5e", marginRight: 6 }}>
+                              BREAKING
+                            </span>
+                          )}
+                          {entry.scope && (
+                            <span
+                              style={{
+                                color: "var(--text-muted)",
+                                fontWeight: 400,
+                              }}
+                            >
+                              ({entry.scope}){" "}
+                            </span>
+                          )}
+                          {entry.message}
+                        </div>
+                        {entry.body && (
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: "var(--text-muted)",
+                              marginTop: 2,
+                              lineHeight: 1.5,
+                            }}
+                          >
+                            {entry.body}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Hash + author */}
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "flex-end",
+                          flexShrink: 0,
+                          gap: 2,
+                        }}
+                      >
+                        <code
+                          style={{
+                            fontSize: 10,
+                            color: "var(--text-muted)",
+                            background: "var(--bg-surface)",
+                            padding: "2px 6px",
+                            borderRadius: 4,
+                          }}
+                        >
+                          {entry.shortHash}
+                        </code>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            color: "var(--text-muted)",
+                          }}
+                        >
+                          {entry.author}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Versions Tab ─────────────────────────────────────── */
 function VersionsTab({
   app,
@@ -468,19 +742,83 @@ function VersionsTab({
   selectedVersion: string;
   onSelectVersion: (v: string) => void;
 }) {
+  const { bumpAppVersion } = useLauncherStore();
+  const [bumping, setBumping] = useState<string | null>(null);
+
+  const handleBump = async (bumpType: "major" | "minor" | "patch") => {
+    if (!app.sourcePath || bumping) return;
+    setBumping(bumpType);
+    try {
+      await bumpAppVersion(app.id, bumpType);
+    } finally {
+      setBumping(null);
+    }
+  };
+
   return (
     <div>
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: 20 }}>
         <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
           Version Management
         </h3>
         <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
-          Install, rollback, or pin specific versions. Multiple versions can coexist.
+          Bump, pin, or rollback versions. Changes are applied to the project's source files.
         </p>
       </div>
 
+      {/* Version bump controls */}
+      {app.sourcePath && (
+        <div
+          className="card"
+          style={{
+            padding: 16,
+            marginBottom: 20,
+            display: "flex",
+            alignItems: "center",
+            gap: 16,
+          }}
+        >
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
+              <Tag size={13} style={{ marginRight: 6, verticalAlign: "middle" }} />
+              Bump Version
+            </div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+              Current: <strong style={{ color: "var(--text-primary)" }}>v{app.version}</strong>
+              {" \u2014 "}updates package.json and/or Cargo.toml automatically
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            {(["patch", "minor", "major"] as const).map((type) => {
+              const colors: Record<string, string> = {
+                patch: "var(--success)",
+                minor: "var(--accent)",
+                major: "#f97316",
+              };
+              return (
+                <button
+                  key={type}
+                  className="btn-secondary"
+                  style={{
+                    padding: "6px 14px",
+                    fontSize: 11,
+                    borderColor: bumping === type ? colors[type] : undefined,
+                    opacity: bumping && bumping !== type ? 0.5 : 1,
+                  }}
+                  onClick={() => handleBump(type)}
+                  disabled={!!bumping}
+                >
+                  <ArrowUp size={11} />
+                  {bumping === type ? "Bumping..." : type.charAt(0).toUpperCase() + type.slice(1)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {app.availableVersions.map((v) => {
+        {[...app.availableVersions].reverse().map((v) => {
           const isCurrent = v === app.version;
           const isSelected = v === selectedVersion;
           return (

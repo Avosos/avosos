@@ -31,6 +31,22 @@ export interface AppDefinition {
   pinnedVersion?: string;
   updateAvailable?: string;
   autoUpdate?: boolean;
+  changelog?: ChangelogEntry[];
+}
+
+/* ─── Changelog ──────────────────────────────────────────── */
+export interface ChangelogEntry {
+  hash: string;
+  shortHash: string;
+  author: string;
+  email: string;
+  date: string;
+  subject: string;
+  body: string;
+  type: string; // feat, fix, refactor, docs, style, perf, test, chore, other
+  scope: string | null;
+  breaking: boolean;
+  message: string;
 }
 
 export type AppCategory =
@@ -164,6 +180,17 @@ declare global {
         args?: string[];
         cwd?: string;
       }) => Promise<{ pid: number; launched: boolean }>;
+      getProjectMeta: (sourcePath: string) => Promise<{
+        version: string | null;
+        description: string | null;
+        name: string | null;
+      }>;
+      getChangelog: (sourcePath: string, maxEntries?: number) => Promise<ChangelogEntry[]>;
+      bumpVersion: (sourcePath: string, bumpType: "major" | "minor" | "patch") => Promise<{
+        oldVersion: string;
+        newVersion: string;
+        filesUpdated: string[];
+      }>;
       exists: (path: string) => Promise<boolean>;
       readData: (key: string) => Promise<unknown>;
       writeData: (key: string, value: unknown) => Promise<boolean>;

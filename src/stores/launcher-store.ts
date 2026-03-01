@@ -7,6 +7,7 @@ import type {
   SystemStats,
   SystemInfo,
   GpuInfo,
+  ChangelogEntry,
 } from "@/types";
 import { APP_REGISTRY } from "@/lib/app-registry";
 import { v4 as uuidv4 } from "uuid";
@@ -23,6 +24,8 @@ interface LauncherState {
   runningApps: Set<string>;
   launchApp: (id: string) => Promise<void>;
   stopApp: (id: string) => void;
+  refreshAppMeta: (id?: string) => Promise<void>;
+  bumpAppVersion: (id: string, bumpType: "major" | "minor" | "patch") => Promise<string | null>;
 
   /* Projects */
   projects: Project[];
@@ -97,6 +100,67 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
       );
       return { runningApps: running, apps };
     }),
+
+  refreshAppMeta: async (id) => {
+    const appsToRefresh = id
+      ? get().apps.filter((a) => a.id === id)
+      : get().apps.filter((a) => a.sourcePath);
+
+    const updates: Record<string, Partial<AppDefinition>> = {};
+
+    await Promise.all(
+      appsToRefresh.map(async (app) => {
+        if (!app.sourcePath) return;
+        try {
+          const [meta, changelog] = await Promise.all([
+            window.electronAPI?.getProjectMeta(app.sourcePath),
+            window.electronAPI?.getChangelog(app.sourcePath, 50),
+          ]);
+
+          const patch: Partial<AppDefinition> = {};
+          if (meta?.version && meta.version !== app.version) {
+            patch.version = meta.version;
+            // Add to availableVersions if not already there
+            if (!app.availableVersions.includes(meta.version)) {
+              patch.availableVersions = [...app.availableVersions, meta.version];
+            }
+          }
+          if (changelog && changelog.length > 0) {
+            patch.changelog = changelog as ChangelogEntry[];
+          }
+          if (Object.keys(patch).length > 0) {
+            updates[app.id] = patch;
+          }
+        } catch { /* skip */ }
+      })
+    );
+
+    if (Object.keys(updates).length > 0) {
+      set((s) => ({
+        apps: s.apps.map((a) =>
+          updates[a.id] ? { ...a, ...updates[a.id] } : a
+        ),
+      }));
+    }
+  },
+
+  bumpAppVersion: async (id, bumpType) => {
+    const app = get().apps.find((a) => a.id === id);
+    if (!app?.sourcePath) return null;
+
+    try {
+      const result = await window.electronAPI?.bumpVersion(app.sourcePath, bumpType);
+      if (result?.newVersion) {
+        // Refresh metadata to pick up the new version + changelog
+        await get().refreshAppMeta(id);
+        return result.newVersion;
+      }
+      return null;
+    } catch (err) {
+      console.error("Failed to bump version:", err);
+      return null;
+    }
+  },
 
   /* ── Projects ─────────────────────────────────────────── */
   projects: [],
@@ -198,6 +262,11 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
       if (info) set({ systemInfo: info });
       const gpu = await window.electronAPI?.getGpuInfo();
       if (gpu) set({ gpuInfo: gpu });
+    } catch { /* browser mode */ }
+
+    // Hydrate live versions + changelogs from project source directories
+    try {
+      await get().refreshAppMeta();
     } catch { /* browser mode */ }
 
     set({ initialized: true });

@@ -226,6 +226,143 @@ ipcMain.handle("app:launch", async (_event, config) => {
   throw new Error(`Application not found: ${executablePath}`);
 });
 
+// ─── Read project metadata (version, description) ─────────
+ipcMain.handle("app:getProjectMeta", async (_event, sourcePath) => {
+  const meta = { version: null, description: null, name: null };
+
+  // Try package.json first
+  const pkgPath = path.join(sourcePath, "package.json");
+  if (fs.existsSync(pkgPath)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
+      meta.version = pkg.version || null;
+      meta.description = pkg.description || null;
+      meta.name = pkg.name || null;
+    } catch { /* ignore */ }
+  }
+
+  // Try Cargo.toml (Rust projects)
+  const cargoPath = path.join(sourcePath, "Cargo.toml");
+  if (fs.existsSync(cargoPath)) {
+    try {
+      const content = fs.readFileSync(cargoPath, "utf-8");
+      const versionMatch = content.match(/^version\s*=\s*"([^"]+)"/m);
+      const descMatch = content.match(/^description\s*=\s*"([^"]+)"/m);
+      const nameMatch = content.match(/^name\s*=\s*"([^"]+)"/m);
+      if (versionMatch) meta.version = versionMatch[1];
+      if (descMatch) meta.description = descMatch[1];
+      if (nameMatch) meta.name = nameMatch[1];
+    } catch { /* ignore */ }
+  }
+
+  return meta;
+});
+
+// ─── Read git changelog from a project ────────────────────
+ipcMain.handle("app:getChangelog", async (_event, sourcePath, maxEntries = 50) => {
+  return new Promise((resolve) => {
+    // Check if it's a git repo
+    if (!fs.existsSync(path.join(sourcePath, ".git"))) {
+      return resolve([]);
+    }
+
+    const gitCmd = `git log --pretty=format:"%H|||%h|||%an|||%ae|||%aI|||%s|||%b###END###" -n ${maxEntries}`;
+    exec(gitCmd, { cwd: sourcePath, maxBuffer: 1024 * 1024 }, (err, stdout) => {
+      if (err) return resolve([]);
+
+      const entries = stdout
+        .split("###END###")
+        .filter((s) => s.trim())
+        .map((raw) => {
+          const parts = raw.trim().split("|||");
+          if (parts.length < 6) return null;
+          const [hash, shortHash, author, email, date, subject, body] = parts;
+
+          // Parse conventional commit type
+          const typeMatch = subject.match(
+            /^(feat|fix|refactor|docs|style|perf|test|chore|build|ci|revert)(?:\(([^)]*)\))?(!)?:\s*(.+)/
+          );
+
+          return {
+            hash,
+            shortHash,
+            author,
+            email,
+            date,
+            subject,
+            body: (body || "").trim(),
+            type: typeMatch ? typeMatch[1] : "other",
+            scope: typeMatch ? typeMatch[2] || null : null,
+            breaking: typeMatch ? !!typeMatch[3] : false,
+            message: typeMatch ? typeMatch[4] : subject,
+          };
+        })
+        .filter(Boolean);
+
+      resolve(entries);
+    });
+  });
+});
+
+// ─── Version bump for a project ───────────────────────────
+ipcMain.handle("app:bumpVersion", async (_event, sourcePath, bumpType) => {
+  // bumpType: "major" | "minor" | "patch"
+  const bump = (current) => {
+    const parts = current.split(".").map(Number);
+    if (parts.length !== 3 || parts.some(isNaN)) return null;
+    if (bumpType === "major") return `${parts[0] + 1}.0.0`;
+    if (bumpType === "minor") return `${parts[0]}.${parts[1] + 1}.0`;
+    if (bumpType === "patch") return `${parts[0]}.${parts[1]}.${parts[2] + 1}`;
+    return null;
+  };
+
+  let oldVersion = null;
+  let newVersion = null;
+  const filesUpdated = [];
+
+  // Bump package.json
+  const pkgPath = path.join(sourcePath, "package.json");
+  if (fs.existsSync(pkgPath)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
+      oldVersion = pkg.version;
+      newVersion = bump(pkg.version);
+      if (newVersion) {
+        pkg.version = newVersion;
+        fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
+        filesUpdated.push("package.json");
+      }
+    } catch { /* ignore */ }
+  }
+
+  // Bump Cargo.toml
+  const cargoPath = path.join(sourcePath, "Cargo.toml");
+  if (fs.existsSync(cargoPath)) {
+    try {
+      let content = fs.readFileSync(cargoPath, "utf-8");
+      const match = content.match(/^(version\s*=\s*")([^"]+)(")/m);
+      if (match) {
+        oldVersion = oldVersion || match[2];
+        newVersion = newVersion || bump(match[2]);
+        if (newVersion) {
+          content = content.replace(
+            /^(version\s*=\s*")([^"]+)(")/m,
+            `$1${newVersion}$3`
+          );
+          fs.writeFileSync(cargoPath, content);
+          filesUpdated.push("Cargo.toml");
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
+  if (!newVersion) {
+    throw new Error("Could not determine version to bump");
+  }
+
+  return { oldVersion, newVersion, filesUpdated };
+});
+
 // ─── Check if a path exists ───────────────────────────────
 ipcMain.handle("fs:exists", (_event, filePath) => {
   return fs.existsSync(filePath);

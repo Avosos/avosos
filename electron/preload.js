@@ -27,6 +27,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // Application launching
   launchApp: (config) => ipcRenderer.invoke("app:launch", config),
 
+  // Project metadata & versioning
+  getProjectMeta: (sourcePath) => ipcRenderer.invoke("app:getProjectMeta", sourcePath),
+  getChangelog: (sourcePath, maxEntries) => ipcRenderer.invoke("app:getChangelog", sourcePath, maxEntries),
+  bumpVersion: (sourcePath, bumpType) => ipcRenderer.invoke("app:bumpVersion", sourcePath, bumpType),
+
   // Filesystem
   exists: (path) => ipcRenderer.invoke("fs:exists", path),
 

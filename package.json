@@ -11,7 +11,8 @@
     "build": "next build",
     "build:electron": "next build && electron-builder",
     "start": "electron .",
-    "lint": "eslint"
+    "lint": "eslint",
+    "bump": "node scripts/bump-version.js"
   },
   "build": {
     "appId": "com.avosos.launcher",
