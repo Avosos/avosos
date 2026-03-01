@@ -141,16 +141,36 @@ ipcMain.handle("system:stopMonitor", () => {
 ipcMain.handle("app:launch", async (_event, config) => {
   const { executablePath, args = [], cwd } = config;
 
-  // If it's a directory with Cargo.toml, run via cargo
+  // If it's a directory with Cargo.toml, try running the compiled binary directly
   if (fs.existsSync(path.join(executablePath, "Cargo.toml"))) {
+    // Determine binary name from the directory name (Cargo convention)
+    const projectName = path.basename(executablePath);
+    const binaryExt = process.platform === "win32" ? ".exe" : "";
+    const releaseBin = path.join(executablePath, "target", "release", projectName + binaryExt);
+    const debugBin = path.join(executablePath, "target", "debug", projectName + binaryExt);
+
+    // Prefer running the prebuilt binary directly (much faster, no shell issues)
+    const binaryPath = fs.existsSync(releaseBin) ? releaseBin : fs.existsSync(debugBin) ? debugBin : null;
+
+    if (binaryPath) {
+      const child = spawn(binaryPath, [], {
+        cwd: executablePath,
+        stdio: "ignore",
+        windowsHide: true,
+      });
+      child.unref();
+      return { pid: child.pid, launched: true };
+    }
+
+    // Fallback: build and run via cargo (for first-time launch)
     const cmd = process.platform === "win32" ? "cargo.cmd" : "cargo";
     const cmdArgs = args.length > 0 ? args : ["run", "--release"];
 
     const child = spawn(cmd, cmdArgs, {
       cwd: executablePath,
-      detached: true,
       stdio: "ignore",
       shell: true,
+      windowsHide: true,
     });
     child.unref();
 
@@ -183,9 +203,9 @@ ipcMain.handle("app:launch", async (_event, config) => {
 
     const child = spawn(cmd, cmdArgs, {
       cwd: executablePath,
-      detached: true,
       stdio: "ignore",
       shell: true,
+      windowsHide: true,
     });
     child.unref();
 
@@ -196,8 +216,8 @@ ipcMain.handle("app:launch", async (_event, config) => {
   if (fs.existsSync(executablePath)) {
     const child = spawn(executablePath, args, {
       cwd: cwd || path.dirname(executablePath),
-      detached: true,
       stdio: "ignore",
+      windowsHide: true,
     });
     child.unref();
     return { pid: child.pid, launched: true };
