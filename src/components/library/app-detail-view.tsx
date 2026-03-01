@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { useLauncherStore } from "@/stores/launcher-store";
 import { CATEGORY_META } from "@/lib/app-registry";
-import CuttamaranIcon from "@/components/icons/cuttamaran-icon";
+import AppIcon from "@/components/icons/app-icon";
 import type { AppPlugin } from "@/types";
 
 type DetailTab = "overview" | "versions" | "plugins" | "compatibility";
@@ -89,7 +89,7 @@ export default function AppDetailView() {
                 boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
               }}
             >
-              <CuttamaranIcon size={80} />
+              <AppIcon icon={app.icon} size={80} />
             </div>
 
             {/* Info */}

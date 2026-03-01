@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useLauncherStore } from "@/stores/launcher-store";
 import { CATEGORY_META } from "@/lib/app-registry";
-import CuttamaranIcon from "@/components/icons/cuttamaran-icon";
+import AppIcon from "@/components/icons/app-icon";
 
 export default function DashboardView() {
   const {
@@ -212,7 +212,7 @@ export default function DashboardView() {
                       cursor: "pointer",
                     }}
                   >
-                    <CuttamaranIcon size={28} />
+                    <AppIcon icon={app.icon} size={28} />
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 13, fontWeight: 600 }}>{app.name}</div>
                       <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
@@ -492,7 +492,7 @@ function AppQuickCard({
       )}
 
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <CuttamaranIcon size={40} />
+        <AppIcon icon={app.icon} size={40} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
             style={{

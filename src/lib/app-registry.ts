@@ -60,21 +60,6 @@ export const APP_REGISTRY: AppDefinition[] = [
       },
     ],
   },
-];
-
-export const CATEGORY_META: Record<
-  string,
-  { label: string; color: string; icon: string }
-> = {
-  video: { label: "Video", color: "#e879f9", icon: "Film" },
-  design: { label: "Design", color: "#60a5fa", icon: "Palette" },
-  development: { label: "Development", color: "#4ade80", icon: "Code" },
-  audio: { label: "Audio", color: "#fbbf24", icon: "Music" },
-  "3d": { label: "3D", color: "#f97316", icon: "Box" },
-  utilities: { label: "Utilities", color: "#a78bfa", icon: "Wrench" },
-  productivity: { label: "Productivity", color: "#2dd4bf", icon: "Layout" },
-  ai: { label: "AI", color: "#f43f5e", icon: "Sparkles" },
-};
 
   // ── Voician ───────────────────────────────────────────────
   {
@@ -136,6 +121,20 @@ export const CATEGORY_META: Record<
     ],
   },
 ];
+
+export const CATEGORY_META: Record<
+  string,
+  { label: string; color: string; icon: string }
+> = {
+  video: { label: "Video", color: "#e879f9", icon: "Film" },
+  design: { label: "Design", color: "#60a5fa", icon: "Palette" },
+  development: { label: "Development", color: "#4ade80", icon: "Code" },
+  audio: { label: "Audio", color: "#fbbf24", icon: "Music" },
+  "3d": { label: "3D", color: "#f97316", icon: "Box" },
+  utilities: { label: "Utilities", color: "#a78bfa", icon: "Wrench" },
+  productivity: { label: "Productivity", color: "#2dd4bf", icon: "Layout" },
+  ai: { label: "AI", color: "#f43f5e", icon: "Sparkles" },
+};
 
 export function getAppById(id: string): AppDefinition | undefined {
   return APP_REGISTRY.find((a) => a.id === id);

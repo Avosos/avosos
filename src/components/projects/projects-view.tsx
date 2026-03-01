@@ -13,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { useLauncherStore } from "@/stores/launcher-store";
-import CuttamaranIcon from "@/components/icons/cuttamaran-icon";
+import AppIcon from "@/components/icons/app-icon";
 import type { Project } from "@/types";
 
 export default function ProjectsView() {
@@ -243,7 +243,7 @@ function ProjectCard({
                   background: "var(--bg-tertiary)",
                 }}
               >
-                <CuttamaranIcon size={24} />
+                <AppIcon icon={app!.icon} size={24} />
                 <span style={{ fontSize: 12, fontWeight: 500, flex: 1 }}>
                   {app!.name}
                 </span>
@@ -515,7 +515,7 @@ function CreateProjectModal({
                         transition: "all 0.15s",
                       }}
                     >
-                      <CuttamaranIcon size={28} />
+                      <AppIcon icon={app.icon} size={28} />
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 13, fontWeight: 600 }}>
                           {app.name}

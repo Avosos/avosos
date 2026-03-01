@@ -16,7 +16,7 @@ import {
   Settings,
 } from "lucide-react";
 import { useLauncherStore } from "@/stores/launcher-store";
-import CuttamaranIcon from "@/components/icons/cuttamaran-icon";
+import AppIcon from "@/components/icons/app-icon";
 import type { EnvironmentProfile } from "@/types";
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -235,7 +235,7 @@ function ProfileCard({
                     background: "var(--bg-tertiary)",
                   }}
                 >
-                  <CuttamaranIcon size={20} />
+                  <AppIcon icon={app!.icon} size={20} />
                   <span style={{ fontSize: 12, fontWeight: 500 }}>
                     {app!.name}
                   </span>

@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useLauncherStore } from "@/stores/launcher-store";
 import { CATEGORY_META } from "@/lib/app-registry";
-import CuttamaranIcon from "@/components/icons/cuttamaran-icon";
+import AppIcon from "@/components/icons/app-icon";
 import type { AppDefinition, AppCategory } from "@/types";
 
 type ViewMode = "grid" | "list";
@@ -309,7 +309,7 @@ function GridCard({
           position: "relative",
         }}
       >
-        <CuttamaranIcon size={48} />
+        <AppIcon icon={app.icon} size={48} />
         {app.isRunning && (
           <div
             style={{
@@ -467,7 +467,7 @@ function ListRow({
       }}
       onClick={onDetails}
     >
-      <CuttamaranIcon size={36} />
+      <AppIcon icon={app.icon} size={36} />
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
