@@ -70,7 +70,7 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
     try {
       const launchConfig = {
         executablePath: app.sourcePath || app.executablePath || "",
-        args: [],
+        args: app.launchArgs || [],
       };
 
       await window.electronAPI?.launchApp(launchConfig);

@@ -19,6 +19,8 @@ export interface AppDefinition {
   websiteUrl?: string;
   executablePath?: string;
   launchScript?: string;
+  launchCommand?: string; // e.g. "cargo" for Rust apps
+  launchArgs?: string[]; // e.g. ["run", "--release"]
   size?: string;
   lastLaunched?: number;
   lastUpdated?: number;

@@ -141,6 +141,22 @@ ipcMain.handle("system:stopMonitor", () => {
 ipcMain.handle("app:launch", async (_event, config) => {
   const { executablePath, args = [], cwd } = config;
 
+  // If it's a directory with Cargo.toml, run via cargo
+  if (fs.existsSync(path.join(executablePath, "Cargo.toml"))) {
+    const cmd = process.platform === "win32" ? "cargo.cmd" : "cargo";
+    const cmdArgs = args.length > 0 ? args : ["run", "--release"];
+
+    const child = spawn(cmd, cmdArgs, {
+      cwd: executablePath,
+      detached: true,
+      stdio: "ignore",
+      shell: true,
+    });
+    child.unref();
+
+    return { pid: child.pid, launched: true };
+  }
+
   // If it's a directory with package.json, try electron dev
   if (
     fs.existsSync(path.join(executablePath, "package.json"))
