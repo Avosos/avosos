@@ -4,7 +4,7 @@
 // ============================================================================
 //
 // Usage:
-//   node scripts/bump-version.js <project-path> <major|minor|patch>
+//   node scripts/bump-version.js <project-path> <major|minor|patch|auto>
 //
 // Supports:
 //   - package.json (Node.js / Electron projects)
@@ -14,9 +14,16 @@
 // After bumping, a git commit + tag is created automatically if the project
 // is inside a git repository.
 //
+// "auto" mode analyzes conventional commits since the last version tag and
+// picks the appropriate bump:
+//   - BREAKING CHANGE / feat!:  → major
+//   - feat:                     → minor
+//   - fix, chore, docs, …       → patch
+//
 // Examples:
 //   node scripts/bump-version.js ../cuttamaran patch
 //   node scripts/bump-version.js ../voician minor
+//   node scripts/bump-version.js ../cuttamaran auto
 //   node scripts/bump-version.js . patch
 // ============================================================================
 
@@ -25,13 +32,14 @@ const path = require("path");
 const { execSync } = require("child_process");
 
 // ─── Parse args ───────────────────────────────────────────
-const [,, rawPath, bumpType] = process.argv;
+const [,, rawPath, rawBumpType] = process.argv;
 
-if (!rawPath || !["major", "minor", "patch"].includes(bumpType)) {
-  console.error("\nUsage: node scripts/bump-version.js <project-path> <major|minor|patch>\n");
+if (!rawPath || !["major", "minor", "patch", "auto"].includes(rawBumpType)) {
+  console.error("\nUsage: node scripts/bump-version.js <project-path> <major|minor|patch|auto>\n");
   console.error("Examples:");
   console.error("  node scripts/bump-version.js ../cuttamaran patch");
   console.error("  node scripts/bump-version.js ../voician minor");
+  console.error("  node scripts/bump-version.js ../cuttamaran auto");
   process.exit(1);
 }
 
@@ -43,11 +51,11 @@ if (!fs.existsSync(projectPath)) {
 }
 
 // ─── Helpers ──────────────────────────────────────────────
-function bump(version) {
+function bumpVersion(version, type) {
   const parts = version.split(".").map(Number);
   if (parts.length !== 3 || parts.some(isNaN)) return null;
-  if (bumpType === "major") return `${parts[0] + 1}.0.0`;
-  if (bumpType === "minor") return `${parts[0]}.${parts[1] + 1}.0`;
+  if (type === "major") return `${parts[0] + 1}.0.0`;
+  if (type === "minor") return `${parts[0]}.${parts[1] + 1}.0`;
   return `${parts[0]}.${parts[1]}.${parts[2] + 1}`;
 }
 
@@ -58,6 +66,72 @@ function isGitRepo(dir) {
 function git(cmd, cwd) {
   return execSync(cmd, { cwd, stdio: "pipe", encoding: "utf-8" }).trim();
 }
+
+/**
+ * Analyze conventional commits since the last tag and return
+ * the appropriate bump type: "major", "minor", or "patch".
+ */
+function detectBumpType(projectDir) {
+  if (!isGitRepo(projectDir)) {
+    console.log("  ℹ No git repo — defaulting to patch");
+    return "patch";
+  }
+
+  // Find the latest semver tag reachable from HEAD
+  let lastTag = null;
+  try {
+    lastTag = git("git describe --tags --abbrev=0 --match=\"v*\"", projectDir);
+  } catch {
+    // No tags yet
+  }
+
+  // Get commit subjects since last tag (or all commits if no tag)
+  let logCmd = "git log --pretty=format:%s";
+  if (lastTag) {
+    logCmd += ` ${lastTag}..HEAD`;
+    console.log(`  ℹ Analysing commits since ${lastTag}`);
+  } else {
+    console.log("  ℹ No previous tag found — analysing all commits");
+  }
+
+  let subjects = [];
+  try {
+    const raw = git(logCmd, projectDir);
+    subjects = raw ? raw.split("\n") : [];
+  } catch {
+    return "patch";
+  }
+
+  if (subjects.length === 0) {
+    console.log("  ℹ No new commits — defaulting to patch");
+    return "patch";
+  }
+
+  console.log(`  ℹ Found ${subjects.length} commit(s) to analyse`);
+
+  let hasMajor = false;
+  let hasMinor = false;
+
+  const BREAKING_RE = /^\w+(?:\(.+\))?!:|BREAKING[ -]CHANGE/i;
+  const FEAT_RE = /^feat(?:\(.+\))?[!:]|^feature(?:\(.+\))?[!:]/i;
+
+  for (const subject of subjects) {
+    if (BREAKING_RE.test(subject)) {
+      hasMajor = true;
+      break; // Can't go higher
+    }
+    if (FEAT_RE.test(subject)) {
+      hasMinor = true;
+    }
+  }
+
+  const result = hasMajor ? "major" : hasMinor ? "minor" : "patch";
+  console.log(`  ℹ Detected bump type: ${result}`);
+  return result;
+}
+
+// ─── Resolve bump type ───────────────────────────────────
+const bumpType = rawBumpType === "auto" ? detectBumpType(projectPath) : rawBumpType;
 
 // ─── Detect current version ──────────────────────────────
 let currentVersion = null;
@@ -83,7 +157,7 @@ if (!currentVersion) {
   process.exit(1);
 }
 
-const newVersion = bump(currentVersion);
+const newVersion = bumpVersion(currentVersion, bumpType);
 if (!newVersion) {
   console.error(`\n  Error: invalid version format: ${currentVersion}\n`);
   process.exit(1);

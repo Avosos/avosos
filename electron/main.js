@@ -305,8 +305,38 @@ ipcMain.handle("app:getChangelog", async (_event, sourcePath, maxEntries = 50) =
 });
 
 // ─── Version bump for a project ───────────────────────────
-ipcMain.handle("app:bumpVersion", async (_event, sourcePath, bumpType) => {
-  // bumpType: "major" | "minor" | "patch"
+ipcMain.handle("app:bumpVersion", async (_event, sourcePath, rawBumpType) => {
+  // rawBumpType: "major" | "minor" | "patch" | "auto"
+
+  // ── Auto-detect bump type from conventional commits ──
+  let bumpType = rawBumpType;
+  if (rawBumpType === "auto") {
+    const { execSync: execSyncLocal } = require("child_process");
+    const git = (cmd) => execSyncLocal(cmd, { cwd: sourcePath, stdio: "pipe", encoding: "utf-8" }).trim();
+
+    let lastTag = null;
+    try { lastTag = git('git describe --tags --abbrev=0 --match="v*"'); } catch { /* no tags */ }
+
+    let subjects = [];
+    try {
+      const logCmd = lastTag
+        ? `git log --pretty=format:%s ${lastTag}..HEAD`
+        : "git log --pretty=format:%s";
+      const raw = git(logCmd);
+      subjects = raw ? raw.split("\n") : [];
+    } catch { /* ignore */ }
+
+    let hasMajor = false;
+    let hasMinor = false;
+    const BREAKING_RE = /^\w+(?:\(.+\))?!:|BREAKING[ -]CHANGE/i;
+    const FEAT_RE = /^feat(?:\(.+\))?[!:]|^feature(?:\(.+\))?[!:]/i;
+    for (const s of subjects) {
+      if (BREAKING_RE.test(s)) { hasMajor = true; break; }
+      if (FEAT_RE.test(s)) hasMinor = true;
+    }
+    bumpType = hasMajor ? "major" : hasMinor ? "minor" : "patch";
+  }
+
   const bump = (current) => {
     const parts = current.split(".").map(Number);
     if (parts.length !== 3 || parts.some(isNaN)) return null;
@@ -360,7 +390,7 @@ ipcMain.handle("app:bumpVersion", async (_event, sourcePath, bumpType) => {
     throw new Error("Could not determine version to bump");
   }
 
-  return { oldVersion, newVersion, filesUpdated };
+  return { oldVersion, newVersion, filesUpdated, resolvedBumpType: bumpType };
 });
 
 // ─── Check if a path exists ───────────────────────────────

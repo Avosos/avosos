@@ -186,10 +186,11 @@ declare global {
         name: string | null;
       }>;
       getChangelog: (sourcePath: string, maxEntries?: number) => Promise<ChangelogEntry[]>;
-      bumpVersion: (sourcePath: string, bumpType: "major" | "minor" | "patch") => Promise<{
+      bumpVersion: (sourcePath: string, bumpType: "major" | "minor" | "patch" | "auto") => Promise<{
         oldVersion: string;
         newVersion: string;
         filesUpdated: string[];
+        resolvedBumpType: "major" | "minor" | "patch";
       }>;
       exists: (path: string) => Promise<boolean>;
       readData: (key: string) => Promise<unknown>;

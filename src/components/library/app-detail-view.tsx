@@ -745,7 +745,7 @@ function VersionsTab({
   const { bumpAppVersion } = useLauncherStore();
   const [bumping, setBumping] = useState<string | null>(null);
 
-  const handleBump = async (bumpType: "major" | "minor" | "patch") => {
+  const handleBump = async (bumpType: "major" | "minor" | "patch" | "auto") => {
     if (!app.sourcePath || bumping) return;
     setBumping(bumpType);
     try {
@@ -789,6 +789,25 @@ function VersionsTab({
             </div>
           </div>
           <div style={{ display: "flex", gap: 6 }}>
+            {/* Auto-bump button */}
+            <button
+              className="btn-secondary"
+              style={{
+                padding: "6px 14px",
+                fontSize: 11,
+                borderColor: bumping === "auto" ? "var(--accent)" : undefined,
+                opacity: bumping && bumping !== "auto" ? 0.5 : 1,
+                background: bumping !== "auto" ? "var(--accent-muted)" : undefined,
+              }}
+              onClick={() => handleBump("auto")}
+              disabled={!!bumping}
+            >
+              <Zap size={11} />
+              {bumping === "auto" ? "Detecting..." : "Auto"}
+            </button>
+
+            <div style={{ width: 1, background: "var(--border-subtle)", margin: "2px 4px" }} />
+
             {(["patch", "minor", "major"] as const).map((type) => {
               const colors: Record<string, string> = {
                 patch: "var(--success)",

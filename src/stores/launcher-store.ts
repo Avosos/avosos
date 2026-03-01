@@ -25,7 +25,7 @@ interface LauncherState {
   launchApp: (id: string) => Promise<void>;
   stopApp: (id: string) => void;
   refreshAppMeta: (id?: string) => Promise<void>;
-  bumpAppVersion: (id: string, bumpType: "major" | "minor" | "patch") => Promise<string | null>;
+  bumpAppVersion: (id: string, bumpType: "major" | "minor" | "patch" | "auto") => Promise<string | null>;
 
   /* Projects */
   projects: Project[];
