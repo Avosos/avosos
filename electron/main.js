@@ -459,6 +459,161 @@ ipcMain.handle("system:gpu", () => {
   });
 });
 
+// ═══════════════════════════════════════════════════════════
+// ─── ADMIN IPC HANDLERS ───────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+
+// ─── Detect installed runtimes ────────────────────────────
+ipcMain.handle("admin:getRuntimes", async () => {
+  const { execSync: ex } = require("child_process");
+  const runtimes = [];
+
+  const probe = (name, cmd) => {
+    try {
+      const version = ex(cmd, { stdio: "pipe", encoding: "utf-8", timeout: 5000 }).trim();
+      const whichCmd = process.platform === "win32" ? `where ${name}` : `which ${name}`;
+      let binPath = null;
+      try { binPath = ex(whichCmd, { stdio: "pipe", encoding: "utf-8", timeout: 3000 }).trim().split("\n")[0]; } catch { /* ignore */ }
+      runtimes.push({ name, version, path: binPath });
+    } catch {
+      runtimes.push({ name, version: null, path: null });
+    }
+  };
+
+  probe("node", "node --version");
+  probe("npm", "npm --version");
+  probe("rust", "rustc --version");
+  probe("cargo", "cargo --version");
+  probe("python", "python --version");
+  probe("git", "git --version");
+  probe("docker", "docker --version");
+
+  return runtimes;
+});
+
+// ─── Git status for a source path ─────────────────────────
+ipcMain.handle("admin:getAppGitStatus", async (_event, sourcePath) => {
+  const { execSync: ex } = require("child_process");
+  const git = (cmd) => ex(cmd, { cwd: sourcePath, stdio: "pipe", encoding: "utf-8", timeout: 5000 }).trim();
+
+  if (!fs.existsSync(path.join(sourcePath, ".git"))) {
+    return { branch: null, dirty: false, lastCommit: null, ahead: 0, behind: 0 };
+  }
+
+  let branch = null;
+  try { branch = git("git rev-parse --abbrev-ref HEAD"); } catch { /* ignore */ }
+
+  let dirty = false;
+  try { dirty = git("git status --porcelain").length > 0; } catch { /* ignore */ }
+
+  let lastCommit = null;
+  try { lastCommit = git("git log -1 --pretty=format:%s (%ar)"); } catch { /* ignore */ }
+
+  let ahead = 0;
+  let behind = 0;
+  try {
+    const tracking = git("git rev-parse --abbrev-ref @{u}");
+    if (tracking) {
+      const ab = git(`git rev-list --left-right --count HEAD...${tracking}`);
+      const [a, b] = ab.split(/\s+/).map(Number);
+      ahead = a || 0;
+      behind = b || 0;
+    }
+  } catch { /* no upstream */ }
+
+  return { branch, dirty, lastCommit, ahead, behind };
+});
+
+// ─── Clear launcher cache ─────────────────────────────────
+ipcMain.handle("admin:clearCache", async () => {
+  let cleared = 0;
+  const cacheDir = path.join(app.getPath("userData"), "Cache");
+  if (fs.existsSync(cacheDir)) {
+    const files = fs.readdirSync(cacheDir);
+    for (const f of files) {
+      try { fs.unlinkSync(path.join(cacheDir, f)); cleared++; } catch { /* skip */ }
+    }
+  }
+  const codeCacheDir = path.join(app.getPath("userData"), "Code Cache");
+  if (fs.existsSync(codeCacheDir)) {
+    const files = fs.readdirSync(codeCacheDir);
+    for (const f of files) {
+      try { fs.unlinkSync(path.join(codeCacheDir, f)); cleared++; } catch { /* skip */ }
+    }
+  }
+  return { cleared };
+});
+
+// ─── Export launcher configuration ────────────────────────
+ipcMain.handle("admin:exportConfig", async () => {
+  const configFiles = {};
+  const dataFiles = fs.readdirSync(dataDir).filter((f) => f.endsWith(".json"));
+  for (const f of dataFiles) {
+    try {
+      configFiles[f] = JSON.parse(fs.readFileSync(path.join(dataDir, f), "utf-8"));
+    } catch { /* skip corrupt files */ }
+  }
+  return JSON.stringify({ version: "1.0", exportedAt: new Date().toISOString(), data: configFiles }, null, 2);
+});
+
+// ─── Import launcher configuration ────────────────────────
+ipcMain.handle("admin:importConfig", async (_event, json) => {
+  try {
+    const parsed = JSON.parse(json);
+    if (!parsed.data || typeof parsed.data !== "object") return false;
+    for (const [filename, content] of Object.entries(parsed.data)) {
+      fs.writeFileSync(path.join(dataDir, filename), JSON.stringify(content, null, 2));
+    }
+    return true;
+  } catch {
+    return false;
+  }
+});
+
+// ─── Launcher logs (in-memory ring buffer) ────────────────
+const _launcherLogs = [];
+const MAX_LOGS = 500;
+
+function addLog(level, message) {
+  _launcherLogs.push({ timestamp: Date.now(), level, message });
+  if (_launcherLogs.length > MAX_LOGS) _launcherLogs.shift();
+}
+
+// Capture a few lifecycle events
+app.on("ready", () => addLog("info", "Launcher started"));
+app.on("before-quit", () => addLog("info", "Launcher shutting down"));
+
+ipcMain.handle("admin:getLauncherLogs", () => {
+  return [..._launcherLogs].reverse();
+});
+
+// ─── Scan a directory for projects ────────────────────────
+ipcMain.handle("admin:scanDirectory", async (_event, dirPath) => {
+  if (!fs.existsSync(dirPath)) return [];
+
+  const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+  const projects = [];
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    if (entry.name.startsWith(".") || entry.name === "node_modules") continue;
+
+    const fullPath = path.join(dirPath, entry.name);
+    const hasPkgJson = fs.existsSync(path.join(fullPath, "package.json"));
+    const hasCargoToml = fs.existsSync(path.join(fullPath, "Cargo.toml"));
+
+    if (hasPkgJson || hasCargoToml) {
+      projects.push({
+        name: entry.name,
+        path: fullPath,
+        type: hasCargoToml ? "rust" : "node",
+      });
+    }
+  }
+
+  return projects;
+});
+
 // ─── App lifecycle ────────────────────────────────────────
 app.whenReady().then(createWindow);
 

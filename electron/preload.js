@@ -46,4 +46,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // Dialogs
   openFolderDialog: (options) => ipcRenderer.invoke("dialog:openFolder", options),
   openFileDialog: (options) => ipcRenderer.invoke("dialog:openFile", options),
+
+  // Admin
+  getRuntimes: () => ipcRenderer.invoke("admin:getRuntimes"),
+  getAppGitStatus: (sourcePath) => ipcRenderer.invoke("admin:getAppGitStatus", sourcePath),
+  clearCache: () => ipcRenderer.invoke("admin:clearCache"),
+  exportConfig: () => ipcRenderer.invoke("admin:exportConfig"),
+  importConfig: (json) => ipcRenderer.invoke("admin:importConfig", json),
+  getLauncherLogs: () => ipcRenderer.invoke("admin:getLauncherLogs"),
+  scanDirectory: (dirPath) => ipcRenderer.invoke("admin:scanDirectory", dirPath),
 });

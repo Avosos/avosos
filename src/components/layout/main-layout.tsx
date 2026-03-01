@@ -9,6 +9,7 @@ import AppDetailView from "@/components/library/app-detail-view";
 import ProjectsView from "@/components/projects/projects-view";
 import ProfilesView from "@/components/profiles/profiles-view";
 import SettingsView from "@/components/settings/settings-view";
+import AdminBoard from "@/components/admin/admin-board";
 import { useLauncherStore } from "@/stores/launcher-store";
 
 export default function MainLayout() {
@@ -43,6 +44,8 @@ export default function MainLayout() {
         return <ProfilesView />;
       case "settings":
         return <SettingsView />;
+      case "admin":
+        return <AdminBoard />;
       default:
         return <DashboardView />;
     }

@@ -7,6 +7,7 @@ import {
   FolderKanban,
   UserCircle,
   Settings,
+  Shield,
   Cpu,
   ChevronRight,
 } from "lucide-react";
@@ -20,6 +21,9 @@ const NAV_ITEMS: { id: NavView; label: string; icon: React.ElementType }[] = [
   { id: "profiles", label: "Profiles", icon: UserCircle },
   { id: "settings", label: "Settings", icon: Settings },
 ];
+
+const ADMIN_ITEM: { id: NavView; label: string; icon: React.ElementType } = 
+  { id: "admin", label: "Admin", icon: Shield };
 
 export default function Sidebar() {
   const { currentView, setView, runningApps, systemStats } =
@@ -132,6 +136,76 @@ export default function Sidebar() {
             </button>
           );
         })}
+
+        {/* Separator + Admin */}
+        <div style={{ height: 1, background: "var(--border-subtle)", margin: "10px 12px" }} />
+        <div
+          style={{
+            fontSize: 10,
+            fontWeight: 600,
+            color: "var(--text-dim)",
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            padding: "0 12px 4px",
+          }}
+        >
+          System
+        </div>
+        {(() => {
+          const active = currentView === "admin";
+          const Icon = ADMIN_ITEM.icon;
+          return (
+            <button
+              onClick={() => setView("admin")}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "10px 12px",
+                borderRadius: 8,
+                border: "none",
+                background: active
+                  ? "rgba(249, 115, 22, 0.12)"
+                  : "transparent",
+                color: active
+                  ? "#f97316"
+                  : "var(--text-secondary)",
+                cursor: "pointer",
+                fontSize: 13,
+                fontWeight: active ? 600 : 500,
+                transition: "all 0.15s ease",
+                textAlign: "left",
+                position: "relative",
+              }}
+              onMouseEnter={(e) => {
+                if (!active)
+                  e.currentTarget.style.background =
+                    "rgba(255,255,255,0.03)";
+              }}
+              onMouseLeave={(e) => {
+                if (!active)
+                  e.currentTarget.style.background = "transparent";
+              }}
+            >
+              {active && (
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    width: 3,
+                    height: 20,
+                    borderRadius: 2,
+                    background: "#f97316",
+                  }}
+                />
+              )}
+              <Icon size={18} />
+              <span>{ADMIN_ITEM.label}</span>
+            </button>
+          );
+        })()}
       </nav>
 
       {/* System stats mini */}

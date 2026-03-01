@@ -152,6 +152,32 @@ export interface GpuInfo {
   vram: number;
 }
 
+/* ─── Admin ──────────────────────────────────────────────── */
+export interface RuntimeInfo {
+  name: string;
+  version: string | null;
+  path: string | null;
+}
+
+export interface AdminAppEntry {
+  id: string;
+  name: string;
+  sourcePath?: string;
+  version: string;
+  installed: boolean;
+  isRunning: boolean;
+  hasGit: boolean;
+  gitBranch: string | null;
+  gitDirty: boolean;
+  lastCommit: string | null;
+}
+
+export interface LauncherLogEntry {
+  timestamp: number;
+  level: "info" | "warn" | "error";
+  message: string;
+}
+
 /* ─── Navigation ─────────────────────────────────────────── */
 export type NavView =
   | "dashboard"
@@ -159,6 +185,7 @@ export type NavView =
   | "projects"
   | "profiles"
   | "settings"
+  | "admin"
   | "app-detail";
 
 /* ─── Electron API ───────────────────────────────────────── */
@@ -199,6 +226,21 @@ declare global {
       openPath: (path: string) => Promise<void>;
       openFolderDialog: (options?: Record<string, unknown>) => Promise<string | null>;
       openFileDialog: (options?: Record<string, unknown>) => Promise<string | null>;
+
+      // Admin
+      getRuntimes: () => Promise<import("@/types").RuntimeInfo[]>;
+      getAppGitStatus: (sourcePath: string) => Promise<{
+        branch: string | null;
+        dirty: boolean;
+        lastCommit: string | null;
+        ahead: number;
+        behind: number;
+      }>;
+      clearCache: () => Promise<{ cleared: number }>;
+      exportConfig: () => Promise<string>;
+      importConfig: (json: string) => Promise<boolean>;
+      getLauncherLogs: () => Promise<import("@/types").LauncherLogEntry[]>;
+      scanDirectory: (dirPath: string) => Promise<{ name: string; path: string; type: "node" | "rust" | "unknown" }[]>;
     };
   }
 }
