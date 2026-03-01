@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7c5cfc"/>
+      <stop offset="100%" stop-color="#e879f9"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#bg)"/>
+  <!-- Stylized "A" — launch/orchestration motif -->
+  <path d="M128 50 L70 200 L90 200 L103 165 L153 165 L166 200 L186 200 Z M128 90 L110 150 L146 150 Z" fill="white" opacity="0.95"/>
+  <!-- Orbit ring -->
+  <ellipse cx="128" cy="128" rx="90" ry="30" stroke="white" stroke-width="4" fill="none" opacity="0.3" transform="rotate(-25 128 128)"/>
+  <circle cx="205" cy="105" r="8" fill="white" opacity="0.8"/>
+</svg>
