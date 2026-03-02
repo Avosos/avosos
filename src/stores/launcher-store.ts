@@ -286,6 +286,28 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
     window.electronAPI?.writeSettings({ accentColor: color });
   },
 
+  /* General settings (persisted) */
+  startOnBoot: false,
+  minimizeToTray: true,
+  confirmLaunch: false,
+  projectsDir: "",
+  setStartOnBoot: (v) => {
+    set({ startOnBoot: v });
+    window.electronAPI?.writeSettings({ startOnBoot: v });
+  },
+  setMinimizeToTray: (v) => {
+    set({ minimizeToTray: v });
+    window.electronAPI?.writeSettings({ minimizeToTray: v });
+  },
+  setConfirmLaunch: (v) => {
+    set({ confirmLaunch: v });
+    window.electronAPI?.writeSettings({ confirmLaunch: v });
+  },
+  setProjectsDir: async (dir) => {
+    set({ projectsDir: dir });
+    await window.electronAPI?.writeSettings({ projectsDir: dir });
+  },
+
   uninstallApp: async (id) => {
     const app = get().apps.find((a) => a.id === id);
     if (!app) return false;
@@ -351,25 +373,36 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
       set((s) => {
         const running = new Set(s.runningApps);
         running.add(id);
-        // Update lastLaunched
+        const pids = new Map(s.runningPids);
+        // Store PID if we got one back (future: parse from launchApp return)
         const apps = s.apps.map((a) =>
           a.id === id ? { ...a, lastLaunched: Date.now(), isRunning: true } : a
         );
-        return { runningApps: running, apps };
+        return { runningApps: running, runningPids: pids, apps };
       });
     } catch (err) {
       console.error("Failed to launch app:", err);
     }
   },
-  stopApp: (id) =>
+  stopApp: async (id) => {
+    const pids = get().runningPids;
+    const pid = pids.get(id);
+    if (pid) {
+      try {
+        await window.electronAPI?.killProcess(pid);
+      } catch { /* best effort */ }
+    }
     set((s) => {
       const running = new Set(s.runningApps);
       running.delete(id);
+      const newPids = new Map(s.runningPids);
+      newPids.delete(id);
       const apps = s.apps.map((a) =>
         a.id === id ? { ...a, isRunning: false } : a
       );
-      return { runningApps: running, apps };
-    }),
+      return { runningApps: running, runningPids: newPids, apps };
+    });
+  },
 
   refreshAppMeta: async (id) => {
     const appsToRefresh = id
@@ -434,26 +467,33 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
 
   /* ── Projects ─────────────────────────────────────────── */
   projects: [],
-  addProject: (project) =>
-    set((s) => ({
-      projects: [
-        ...s.projects,
-        {
-          ...project,
-          id: uuidv4(),
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        },
-      ],
-    })),
+  addProject: (project) => {
+    const newProject = {
+      ...project,
+      id: uuidv4(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    set((s) => {
+      const projects = [...s.projects, newProject];
+      window.electronAPI?.writeData("projects", projects);
+      return { projects };
+    });
+  },
   removeProject: (id) =>
-    set((s) => ({ projects: s.projects.filter((p) => p.id !== id) })),
+    set((s) => {
+      const projects = s.projects.filter((p) => p.id !== id);
+      window.electronAPI?.writeData("projects", projects);
+      return { projects };
+    }),
   updateProject: (id, data) =>
-    set((s) => ({
-      projects: s.projects.map((p) =>
+    set((s) => {
+      const projects = s.projects.map((p) =>
         p.id === id ? { ...p, ...data, updatedAt: Date.now() } : p
-      ),
-    })),
+      );
+      window.electronAPI?.writeData("projects", projects);
+      return { projects };
+    }),
 
   /* ── Profiles ─────────────────────────────────────────── */
   profiles: [
@@ -489,19 +529,34 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
     },
   ],
   activeProfileId: "video-prod",
-  setActiveProfile: (id) => set({ activeProfileId: id }),
-  addProfile: (profile) =>
-    set((s) => ({
-      profiles: [
-        ...s.profiles,
-        {
-          ...profile,
-          id: uuidv4(),
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        },
-      ],
-    })),
+  setActiveProfile: (id) => {
+    set({ activeProfileId: id });
+    window.electronAPI?.writeSettings({ activeProfileId: id });
+  },
+  addProfile: (profile) => {
+    const newProfile = {
+      ...profile,
+      id: uuidv4(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    set((s) => {
+      const profiles = [...s.profiles, newProfile];
+      window.electronAPI?.writeData("profiles", profiles);
+      return { profiles };
+    });
+  },
+  removeProfile: (id) =>
+    set((s) => {
+      const profiles = s.profiles.filter((p) => p.id !== id);
+      window.electronAPI?.writeData("profiles", profiles);
+      // If we removed the active profile, clear selection
+      const activeProfileId = s.activeProfileId === id ? null : s.activeProfileId;
+      if (activeProfileId !== s.activeProfileId) {
+        window.electronAPI?.writeSettings({ activeProfileId });
+      }
+      return { profiles, activeProfileId };
+    }),
 
   /* ── System ───────────────────────────────────────────── */
   systemInfo: null,
@@ -526,19 +581,33 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
       if (projects) set({ projects });
     } catch { /* first run */ }
 
+    // Load persisted profiles
+    try {
+      const profiles = (await window.electronAPI?.readData("profiles")) as EnvironmentProfile[] | null;
+      if (profiles && profiles.length > 0) set({ profiles });
+    } catch { /* first run */ }
+
     // Hydrate install directory
     try {
       const installDir = await window.electronAPI?.getInstallDir();
       if (installDir) set({ installDir: installDir as string });
     } catch { /* browser mode */ }
 
-    // Hydrate theme/accent settings
+    // Hydrate theme/accent + general settings
     try {
       const settings = await window.electronAPI?.readSettings();
       if (settings) {
         const theme = (settings.theme as "dark" | "light") || "dark";
         const accentColor = (settings.accentColor as string) || "#7c5cfc";
-        set({ theme, accentColor });
+        set({
+          theme,
+          accentColor,
+          startOnBoot: settings.startOnBoot as boolean ?? false,
+          minimizeToTray: settings.minimizeToTray as boolean ?? true,
+          confirmLaunch: settings.confirmLaunch as boolean ?? false,
+          projectsDir: (settings.projectsDir as string) || "",
+          activeProfileId: (settings.activeProfileId as string) || get().activeProfileId,
+        });
         applyTheme(theme, accentColor);
       }
     } catch { /* browser mode */ }

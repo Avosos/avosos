@@ -1069,8 +1069,8 @@ function DevToolsSection() {
   const [envSearch, setEnvSearch] = useState("");
   const [showEnv, setShowEnv] = useState(false);
 
-  // Collect relevant env vars
-  const envVars = typeof process !== "undefined" ? [] : [];
+  // Collect relevant env vars from Electron
+  const [envVars, setEnvVars] = useState<{ key: string; value: string }[]>([]);
   // We'll load runtimes from Electron
 
   useEffect(() => {
@@ -1084,6 +1084,10 @@ function DevToolsSection() {
         setLoading(false);
       }
     })();
+    // Load env vars
+    window.electronAPI?.getEnvVars().then((vars) => {
+      if (vars) setEnvVars(vars);
+    }).catch(() => {});
   }, []);
 
   return (
@@ -1271,20 +1275,41 @@ function DevToolsSection() {
                 fontFamily: "monospace",
               }}
             >
-              <p
-                style={{
-                  color: "var(--text-muted)",
-                  fontSize: 11,
-                  padding: "8px 0",
-                }}
-              >
-                Environment variables are available in the main process. Key
-                variables:{" "}
-                <strong>NODE_ENV</strong>,{" "}
-                <strong>PATH</strong>,{" "}
-                <strong>USERPROFILE</strong>,{" "}
-                <strong>APPDATA</strong>
-              </p>
+              {envVars
+                .filter((v) =>
+                  !envSearch || v.key.toLowerCase().includes(envSearch.toLowerCase()) || v.value.toLowerCase().includes(envSearch.toLowerCase())
+                )
+                .map((v) => (
+                  <div
+                    key={v.key}
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      padding: "4px 0",
+                      borderBottom: "1px solid var(--border-subtle)",
+                    }}
+                  >
+                    <span style={{ color: "var(--accent)", fontWeight: 600, minWidth: 160, flexShrink: 0 }}>
+                      {v.key}
+                    </span>
+                    <span
+                      style={{
+                        color: "var(--text-secondary)",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                      title={v.value}
+                    >
+                      {v.value}
+                    </span>
+                  </div>
+                ))}
+              {envVars.length === 0 && (
+                <p style={{ color: "var(--text-muted)", fontSize: 11, padding: "8px 0" }}>
+                  No environment variables available.
+                </p>
+              )}
             </div>
           </>
         )}
@@ -1315,13 +1340,10 @@ function DevToolsSection() {
           <button
             className="btn-secondary"
             style={{ padding: "8px 16px", fontSize: 12 }}
-            onClick={() =>
-              window.electronAPI?.openPath(
-                window.electronAPI
-                  ? "."
-                  : ""
-              )
-            }
+            onClick={async () => {
+              const dataDir = await window.electronAPI?.getDataDir();
+              if (dataDir) window.electronAPI?.openPath(dataDir);
+            }}
           >
             <FolderOpen size={13} />
             Open Data Directory
@@ -1918,13 +1940,15 @@ function SecuritySection() {
               borderColor: "var(--error)",
               color: "var(--error)",
             }}
-            onClick={() => {
+            onClick={async () => {
               if (
                 confirm(
                   "Reset all launcher settings to defaults? This cannot be undone."
                 )
               ) {
-                // Would clear all data
+                await window.electronAPI?.resetLauncher();
+                // Reload the app to pick up fresh state
+                window.location.reload();
               }
             }}
           >

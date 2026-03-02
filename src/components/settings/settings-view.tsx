@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Monitor,
   Palette,
@@ -13,6 +13,7 @@ import {
   FolderOpen,
   ChevronRight,
   ExternalLink,
+  Lock,
 } from "lucide-react";
 import { useLauncherStore } from "@/stores/launcher-store";
 
@@ -222,10 +223,13 @@ function Toggle({ enabled, onChange }: { enabled: boolean; onChange: () => void 
 /* ─── Section content ──────────────────────────────────── */
 
 function GeneralSettings() {
-  const [startOnBoot, setStartOnBoot] = useState(false);
-  const [minimizeToTray, setMinimizeToTray] = useState(true);
-  const [confirmLaunch, setConfirmLaunch] = useState(false);
-  const { installDir, setInstallDir } = useLauncherStore();
+  const {
+    installDir, setInstallDir,
+    startOnBoot, setStartOnBoot,
+    minimizeToTray, setMinimizeToTray,
+    confirmLaunch, setConfirmLaunch,
+    projectsDir, setProjectsDir,
+  } = useLauncherStore();
 
   const handleChangeInstallDir = async () => {
     const selected = await window.electronAPI?.openFolderDialog({
@@ -234,6 +238,16 @@ function GeneralSettings() {
     });
     if (selected) {
       setInstallDir(selected);
+    }
+  };
+
+  const handleChangeProjectsDir = async () => {
+    const selected = await window.electronAPI?.openFolderDialog({
+      title: "Select default projects directory",
+      defaultPath: projectsDir || undefined,
+    });
+    if (selected) {
+      setProjectsDir(selected);
     }
   };
 
@@ -274,8 +288,15 @@ function GeneralSettings() {
             Change
           </button>
         </SettingRow>
-        <SettingRow label="Projects directory" description="Default location for new projects">
-          <button className="btn-secondary" style={{ padding: "5px 12px", fontSize: 12 }}>
+        <SettingRow
+          label="Projects directory"
+          description={projectsDir || "Not set – using default location"}
+        >
+          <button
+            className="btn-secondary"
+            style={{ padding: "5px 12px", fontSize: 12 }}
+            onClick={handleChangeProjectsDir}
+          >
             <FolderOpen size={12} />
             Change
           </button>
@@ -363,77 +384,71 @@ function AppearanceSettings() {
 }
 
 function NotificationSettings() {
-  const [updateNotifs, setUpdateNotifs] = useState(true);
-  const [appNotifs, setAppNotifs] = useState(true);
-
   return (
     <div className="animate-fadeIn">
       <SettingGroup title="Notifications" description="Control what notifications you receive">
-        <SettingRow
-          label="Update available"
-          description="Notify when application updates are ready"
-        >
-          <Toggle enabled={updateNotifs} onChange={() => setUpdateNotifs(!updateNotifs)} />
-        </SettingRow>
-        <SettingRow
-          label="Application events"
-          description="Notify when apps finish launching or encounter errors"
-        >
-          <Toggle enabled={appNotifs} onChange={() => setAppNotifs(!appNotifs)} />
-        </SettingRow>
+        <ComingSoonBanner feature="Notifications" description="System notifications for updates, app events, and launcher activity will be available in a future release." />
       </SettingGroup>
     </div>
   );
 }
 
 function UpdateSettings() {
-  const [autoCheck, setAutoCheck] = useState(true);
-  const [autoInstall, setAutoInstall] = useState(false);
-  const [bgUpdates, setBgUpdates] = useState(true);
-
   return (
     <div className="animate-fadeIn">
       <SettingGroup title="Updates" description="How updates are handled">
-        <SettingRow
-          label="Check for updates automatically"
-          description="Periodically check for new versions"
-        >
-          <Toggle enabled={autoCheck} onChange={() => setAutoCheck(!autoCheck)} />
-        </SettingRow>
-        <SettingRow
-          label="Install updates automatically"
-          description="Download and install minor updates without prompting"
-        >
-          <Toggle enabled={autoInstall} onChange={() => setAutoInstall(!autoInstall)} />
-        </SettingRow>
-        <SettingRow
-          label="Background updates"
-          description="Update applications in the background without interruption"
-        >
-          <Toggle enabled={bgUpdates} onChange={() => setBgUpdates(!bgUpdates)} />
-        </SettingRow>
+        <ComingSoonBanner feature="Auto-Updates" description="Automatic update checking, downloading, and installation will be available in a future release." />
       </SettingGroup>
     </div>
   );
 }
 
 function StorageSettings() {
+  const [storageInfo, setStorageInfo] = useState<{ cacheSize: number; dataSize: number } | null>(null);
+  const [clearing, setClearing] = useState(false);
+
+  useEffect(() => {
+    window.electronAPI?.getStorageInfo().then(setStorageInfo).catch(() => {});
+  }, []);
+
+  const handleClearCache = async () => {
+    setClearing(true);
+    try {
+      await window.electronAPI?.clearCache();
+      const updated = await window.electronAPI?.getStorageInfo();
+      if (updated) setStorageInfo(updated);
+    } catch { /* ignore */ }
+    setClearing(false);
+  };
+
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  };
+
   return (
     <div className="animate-fadeIn">
       <SettingGroup title="Storage" description="Manage disk space and cache">
         <SettingRow label="Cache size" description="Temporary files and download cache">
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)" }}>
-              142 MB
+              {storageInfo ? formatSize(storageInfo.cacheSize) : "Calculating…"}
             </span>
-            <button className="btn-secondary" style={{ padding: "5px 12px", fontSize: 12 }}>
-              Clear
+            <button
+              className="btn-secondary"
+              style={{ padding: "5px 12px", fontSize: 12 }}
+              onClick={handleClearCache}
+              disabled={clearing}
+            >
+              {clearing ? "Clearing…" : "Clear"}
             </button>
           </div>
         </SettingRow>
-        <SettingRow label="Application data" description="Settings, plugins, and configuration files">
+        <SettingRow label="Application data" description="Settings, profiles, and configuration files">
           <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)" }}>
-            28 MB
+            {storageInfo ? formatSize(storageInfo.dataSize) : "Calculating…"}
           </span>
         </SettingRow>
       </SettingGroup>
@@ -442,49 +457,14 @@ function StorageSettings() {
 }
 
 function CloudSettings() {
-  const [syncSettings, setSyncSettings] = useState(false);
-  const [syncPlugins, setSyncPlugins] = useState(false);
-
   return (
     <div className="animate-fadeIn">
       <SettingGroup
         title="Cloud Synchronization"
         description="Sync your settings, profiles, and plugins across devices"
       >
-        <SettingRow
-          label="Sync settings"
-          description="Keep launcher settings synchronized"
-        >
-          <Toggle enabled={syncSettings} onChange={() => setSyncSettings(!syncSettings)} />
-        </SettingRow>
-        <SettingRow
-          label="Sync plugins"
-          description="Synchronize installed plugin lists"
-        >
-          <Toggle enabled={syncPlugins} onChange={() => setSyncPlugins(!syncPlugins)} />
-        </SettingRow>
+        <ComingSoonBanner feature="Cloud Sync" description="Cloud synchronization for settings, profiles, and plugins across devices will be available in a future release. This will require an Avosos account." />
       </SettingGroup>
-
-      <div
-        style={{
-          padding: "16px",
-          borderRadius: 10,
-          border: "1px solid var(--border-subtle)",
-          background: "var(--bg-card)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-          <Cloud size={16} style={{ color: "var(--text-muted)" }} />
-          <span style={{ fontSize: 13, fontWeight: 600 }}>Cloud Status</span>
-        </div>
-        <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6 }}>
-          Cloud synchronization is not yet connected. Sign in to enable cross-device
-          syncing of your workspace, profiles, and settings.
-        </p>
-        <button className="btn-primary" style={{ marginTop: 10, padding: "6px 16px" }}>
-          Connect Account
-        </button>
-      </div>
     </div>
   );
 }
@@ -593,6 +573,28 @@ function AboutSettings({
           GitHub Organization
         </button>
       </SettingGroup>
+    </div>
+  );
+}
+
+function ComingSoonBanner({ feature, description }: { feature: string; description: string }) {
+  return (
+    <div
+      style={{
+        padding: "20px",
+        borderRadius: 10,
+        border: "1px dashed var(--border-default)",
+        background: "var(--bg-card)",
+        textAlign: "center",
+      }}
+    >
+      <Lock size={24} style={{ color: "var(--text-dim)", marginBottom: 8 }} />
+      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>
+        {feature} — Coming Soon
+      </div>
+      <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, maxWidth: 400, margin: "0 auto" }}>
+        {description}
+      </p>
     </div>
   );
 }
