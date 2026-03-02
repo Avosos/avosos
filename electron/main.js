@@ -198,6 +198,11 @@ ipcMain.handle("app:install", async (_event, { appId, repoUrl, name }) => {
   const { createWriteStream } = require("fs");
   const { pipeline } = require("stream/promises");
 
+  /** Send progress to renderer */
+  const sendProgress = (stage, detail = "") => {
+    try { mainWindow?.webContents?.send("install:progress", { appId, stage, detail }); } catch { /* noop */ }
+  };
+
   const installDir = getInstallDir();
   if (!fs.existsSync(installDir)) fs.mkdirSync(installDir, { recursive: true });
 
@@ -214,6 +219,8 @@ ipcMain.handle("app:install", async (_event, { appId, repoUrl, name }) => {
     const apiUrl = `https://api.github.com/repos/${repoPath}/releases/latest`;
 
     try {
+      sendProgress("checking", "Checking for releases…");
+
       // Fetch latest release info (null if no releases exist)
       const releaseInfo = await new Promise((resolve, reject) => {
         const req = https.get(apiUrl, {
@@ -259,9 +266,13 @@ ipcMain.handle("app:install", async (_event, { appId, repoUrl, name }) => {
       if (archiveAsset) {
         const archivePath = path.join(installDir, archiveAsset.name);
         // Download the asset
-        await downloadFile(archiveAsset.browser_download_url, archivePath);
+        sendProgress("downloading", `Downloading ${archiveAsset.name}…`);
+        await downloadFileWithProgress(archiveAsset.browser_download_url, archivePath, (pct) => {
+          sendProgress("downloading", `Downloading ${archiveAsset.name}… ${pct}%`);
+        });
 
         // Extract
+        sendProgress("extracting", "Extracting archive…");
         fs.mkdirSync(appDir, { recursive: true });
         if (archiveAsset.name.endsWith(".zip")) {
           await extractZip(archivePath, appDir);
@@ -270,8 +281,9 @@ ipcMain.handle("app:install", async (_event, { appId, repoUrl, name }) => {
         try { fs.unlinkSync(archivePath); } catch { /* ignore */ }
 
         // Post-install: install dependencies
-        await postInstallDeps(appDir);
+        await postInstallDeps(appDir, sendProgress);
 
+        sendProgress("done", "Installation complete");
         return { installed: true, installPath: appDir, method: "release" };
       }
 
@@ -281,14 +293,19 @@ ipcMain.handle("app:install", async (_event, { appId, repoUrl, name }) => {
         const zipUrl = `https://github.com/${repoPath}/archive/refs/tags/${tagName}.zip`;
         const archivePath = path.join(installDir, `${appId}-${tagName}.zip`);
 
-        await downloadFile(zipUrl, archivePath);
+        sendProgress("downloading", `Downloading source ${tagName}…`);
+        await downloadFileWithProgress(zipUrl, archivePath, (pct) => {
+          sendProgress("downloading", `Downloading source ${tagName}… ${pct}%`);
+        });
+        sendProgress("extracting", "Extracting archive…");
         fs.mkdirSync(appDir, { recursive: true });
         await extractZip(archivePath, appDir);
         try { fs.unlinkSync(archivePath); } catch { /* ignore */ }
 
         // Post-install: install dependencies
-        await postInstallDeps(appDir);
+        await postInstallDeps(appDir, sendProgress);
 
+        sendProgress("done", "Installation complete");
         return { installed: true, installPath: appDir, method: "source-release" };
       }
     } catch (err) {
@@ -298,14 +315,23 @@ ipcMain.handle("app:install", async (_event, { appId, repoUrl, name }) => {
       }
     }
 
-    // Fallback: git clone
+    // Fallback: git clone (async)
     try {
-      const { execSync: ex } = require("child_process");
-      ex(`git clone "${repoUrl}" "${appDir}"`, { stdio: "pipe", timeout: 120000 });
+      sendProgress("cloning", "Cloning repository…");
+      await new Promise((resolve, reject) => {
+        const proc = spawn("git", ["clone", repoUrl, appDir], { stdio: "pipe" });
+        proc.stderr.on("data", (chunk) => {
+          const line = chunk.toString().trim();
+          if (line) sendProgress("cloning", line);
+        });
+        proc.on("close", (code) => code === 0 ? resolve() : reject(new Error(`git clone exited with code ${code}`)));
+        proc.on("error", reject);
+      });
 
       // Post-install: install dependencies
-      await postInstallDeps(appDir);
+      await postInstallDeps(appDir, sendProgress);
 
+      sendProgress("done", "Installation complete");
       return { installed: true, installPath: appDir, method: "git-clone" };
     } catch (cloneErr) {
       // Clean up partial clone
@@ -317,15 +343,26 @@ ipcMain.handle("app:install", async (_event, { appId, repoUrl, name }) => {
   throw new Error(`Cannot install ${name}: no repository URL configured`);
 });
 
-// ─── Post-install: install dependencies ───────────────────
-async function postInstallDeps(appDir) {
-  const { execSync: ex } = require("child_process");
-
+// ─── Post-install: install dependencies (fully async) ─────
+async function postInstallDeps(appDir, sendProgress = () => {}) {
   // Node projects: npm install
   if (fs.existsSync(path.join(appDir, "package.json"))) {
     try {
+      sendProgress("deps", "Installing npm dependencies…");
       const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
-      ex(`${npmCmd} install`, { cwd: appDir, stdio: "pipe", timeout: 300000 });
+      await new Promise((resolve, reject) => {
+        const proc = spawn(npmCmd, ["install"], { cwd: appDir, stdio: "pipe", shell: true });
+        proc.stderr.on("data", (chunk) => {
+          const line = chunk.toString().trim();
+          if (line) sendProgress("deps", line);
+        });
+        proc.stdout.on("data", (chunk) => {
+          const line = chunk.toString().trim();
+          if (line) sendProgress("deps", line);
+        });
+        proc.on("close", (code) => code === 0 ? resolve() : reject(new Error(`npm install exited with code ${code}`)));
+        proc.on("error", reject);
+      });
     } catch (err) {
       console.error("npm install failed (non-fatal):", err.message);
     }
@@ -334,8 +371,21 @@ async function postInstallDeps(appDir) {
   // Rust projects: cargo build
   if (fs.existsSync(path.join(appDir, "Cargo.toml"))) {
     try {
-      const cargoCmd = process.platform === "win32" ? "cargo.cmd" : "cargo";
-      ex(`${cargoCmd} build --release`, { cwd: appDir, stdio: "pipe", timeout: 600000 });
+      sendProgress("deps", "Building Rust project (cargo build --release)…");
+      const cargoCmd = process.platform === "win32" ? "cargo" : "cargo";
+      await new Promise((resolve, reject) => {
+        const proc = spawn(cargoCmd, ["build", "--release"], { cwd: appDir, stdio: "pipe", shell: true });
+        proc.stderr.on("data", (chunk) => {
+          const line = chunk.toString().trim();
+          if (line) sendProgress("deps", line);
+        });
+        proc.stdout.on("data", (chunk) => {
+          const line = chunk.toString().trim();
+          if (line) sendProgress("deps", line);
+        });
+        proc.on("close", (code) => code === 0 ? resolve() : reject(new Error(`cargo build exited with code ${code}`)));
+        proc.on("error", reject);
+      });
     } catch (err) {
       console.error("cargo build failed (non-fatal):", err.message);
     }
@@ -368,6 +418,11 @@ ipcMain.handle("app:uninstall", async (_event, { appId, installPath }) => {
 
 // ─── Helper: download a file following redirects ──────────
 function downloadFile(url, destPath) {
+  return downloadFileWithProgress(url, destPath, () => {});
+}
+
+// ─── Helper: download a file with progress callback ───────
+function downloadFileWithProgress(url, destPath, onProgress) {
   const https = require("https");
   const http = require("http");
   return new Promise((resolve, reject) => {
@@ -380,7 +435,15 @@ function downloadFile(url, destPath) {
         if (res.statusCode !== 200) {
           return reject(new Error(`Download failed: HTTP ${res.statusCode}`));
         }
+        const totalBytes = parseInt(res.headers["content-length"] || "0", 10);
+        let receivedBytes = 0;
         const file = fs.createWriteStream(destPath);
+        res.on("data", (chunk) => {
+          receivedBytes += chunk.length;
+          if (totalBytes > 0) {
+            onProgress(Math.round((receivedBytes / totalBytes) * 100));
+          }
+        });
         res.pipe(file);
         file.on("finish", () => { file.close(); resolve(); });
         file.on("error", reject);

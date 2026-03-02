@@ -213,6 +213,25 @@ export default function AppDetailView() {
                 )}
               </button>
 
+              {app.installing && app.installProgress && (
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "var(--accent)",
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    background: "var(--accent-muted)",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    textAlign: "center",
+                  }}
+                  title={app.installProgress}
+                >
+                  {app.installProgress}
+                </div>
+              )}
+
               {app.repoUrl && (
                 <button
                   className="btn-secondary"

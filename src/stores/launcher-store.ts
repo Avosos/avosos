@@ -182,7 +182,7 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
       // Mark as installing in the UI
       set((s) => ({
         apps: s.apps.map((a) =>
-          a.id === id ? { ...a, installing: true } : a
+          a.id === id ? { ...a, installing: true, installProgress: "Starting…" } : a
         ),
       }));
 
@@ -200,6 +200,7 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
                   ...a,
                   installed: true,
                   installing: false,
+                  installProgress: undefined,
                   installPath: result.installPath,
                   sourcePath: result.installPath,
                 }
@@ -213,7 +214,7 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
       // Reset installing state on failure
       set((s) => ({
         apps: s.apps.map((a) =>
-          a.id === id ? { ...a, installing: false } : a
+          a.id === id ? { ...a, installing: false, installProgress: undefined } : a
         ),
       }));
       return false;
@@ -221,7 +222,7 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
       console.error("Failed to install app:", err);
       set((s) => ({
         apps: s.apps.map((a) =>
-          a.id === id ? { ...a, installing: false } : a
+          a.id === id ? { ...a, installing: false, installProgress: undefined } : a
         ),
       }));
       return false;
@@ -628,6 +629,17 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
     // Hydrate live versions + changelogs from project source directories
     try {
       await get().refreshAppMeta();
+    } catch { /* browser mode */ }
+
+    // Subscribe to install progress events from main process
+    try {
+      window.electronAPI?.onInstallProgress(({ appId, stage, detail }) => {
+        set((s) => ({
+          apps: s.apps.map((a) =>
+            a.id === appId ? { ...a, installProgress: detail } : a
+          ),
+        }));
+      });
     } catch { /* browser mode */ }
 
     set({ initialized: true });

@@ -416,6 +416,25 @@ function GridCard({
           {app.description}
         </p>
 
+        {app.installing && app.installProgress && (
+          <div
+            style={{
+              fontSize: 11,
+              color: "var(--accent)",
+              marginBottom: 8,
+              padding: "6px 10px",
+              borderRadius: 6,
+              background: "var(--accent-muted)",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+            title={app.installProgress}
+          >
+            {app.installProgress}
+          </div>
+        )}
+
         <div style={{ display: "flex", gap: 8 }}>
           <button
             className="btn-primary"
@@ -526,6 +545,22 @@ function ListRow({
       >
         v{app.version}
       </div>
+
+      {app.installing && app.installProgress && (
+        <div
+          style={{
+            fontSize: 10,
+            color: "var(--accent)",
+            maxWidth: 200,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+          title={app.installProgress}
+        >
+          {app.installProgress}
+        </div>
+      )}
 
       <div style={{ display: "flex", gap: 6 }}>
         <button

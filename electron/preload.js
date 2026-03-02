@@ -30,6 +30,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
   installApp: (config) => ipcRenderer.invoke("app:install", config),
   uninstallApp: (config) => ipcRenderer.invoke("app:uninstall", config),
 
+  // Install progress events
+  onInstallProgress: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on("install:progress", handler);
+    return () => ipcRenderer.removeListener("install:progress", handler);
+  },
+
   // Install directory settings
   getInstallDir: () => ipcRenderer.invoke("settings:getInstallDir"),
   setInstallDir: (dirPath) => ipcRenderer.invoke("settings:setInstallDir", dirPath),

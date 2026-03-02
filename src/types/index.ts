@@ -29,6 +29,7 @@ export interface AppDefinition {
   resourceUsage?: ResourceUsage;
   isRunning?: boolean;
   installing?: boolean;
+  installProgress?: string; // human-readable progress detail
   pinnedVersion?: string;
   updateAvailable?: string;
   autoUpdate?: boolean;
@@ -262,6 +263,7 @@ declare global {
       getStorageInfo: () => Promise<{ cacheSize: number; dataSize: number }>;
       getDataDir: () => Promise<string>;
       killProcess: (pid: number) => Promise<{ killed: boolean; error?: string }>;
+      onInstallProgress: (callback: (data: { appId: string; stage: string; detail: string }) => void) => () => void;
     };
   }
 }
