@@ -15,7 +15,10 @@ const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 let mainWindow = null;
 
 // ─── Data directory for launcher state ─────────────────────
-const dataDir = path.join(app.getPath("userData"), "avosos-data");
+// Everything lives under AppData/Roaming/avosos:
+//   avosos/launcher  — launcher settings & state
+//   avosos/apps      — installed applications
+const dataDir = path.join(app.getPath("appData"), "avosos", "launcher");
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
 function getIconPath() {
