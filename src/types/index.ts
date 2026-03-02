@@ -214,8 +214,14 @@ declare global {
         repoUrl?: string;
         name: string;
       }) => Promise<{ installed: boolean; installPath: string; method?: string; alreadyExisted?: boolean }>;
+      uninstallApp: (config: {
+        appId: string;
+        installPath?: string;
+      }) => Promise<{ uninstalled: boolean; path: string; reason?: string }>;
       getInstallDir: () => Promise<string>;
       setInstallDir: (dirPath: string) => Promise<boolean>;
+      readSettings: () => Promise<Record<string, unknown>>;
+      writeSettings: (patch: Record<string, unknown>) => Promise<boolean>;
       getProjectMeta: (sourcePath: string) => Promise<{
         version: string | null;
         description: string | null;

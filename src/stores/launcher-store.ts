@@ -12,6 +12,87 @@ import type {
 import { APP_REGISTRY } from "@/lib/app-registry";
 import { v4 as uuidv4 } from "uuid";
 
+/* ── Theme helpers ──────────────────────────────────────── */
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const m = hex.replace("#", "").match(/.{2}/g);
+  if (!m) return null;
+  return { r: parseInt(m[0], 16), g: parseInt(m[1], 16), b: parseInt(m[2], 16) };
+}
+
+function lighten(hex: string, pct: number): string {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  const f = pct / 100;
+  const r = Math.min(255, Math.round(rgb.r + (255 - rgb.r) * f));
+  const g = Math.min(255, Math.round(rgb.g + (255 - rgb.g) * f));
+  const b = Math.min(255, Math.round(rgb.b + (255 - rgb.b) * f));
+  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+}
+
+function applyTheme(theme: "dark" | "light", accent: string) {
+  const root = document.documentElement;
+  const rgb = hexToRgb(accent);
+  if (!rgb) return;
+
+  const accentHover = lighten(accent, 15);
+
+  // Accent-derived vars
+  root.style.setProperty("--accent", accent);
+  root.style.setProperty("--accent-hover", accentHover);
+  root.style.setProperty("--accent-muted", `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.12)`);
+  root.style.setProperty("--accent-glow", `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.25)`);
+  root.style.setProperty("--accent-gradient", `linear-gradient(135deg, ${accent}, ${lighten(accent, 30)})`);
+  root.style.setProperty("--accent-gradient-subtle", `linear-gradient(135deg, rgba(${rgb.r},${rgb.g},${rgb.b},0.15), rgba(${rgb.r},${rgb.g},${rgb.b},0.05))`);
+  root.style.setProperty("--shadow-glow", `0 0 40px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.15)`);
+
+  // Theme-derived vars
+  if (theme === "light") {
+    root.style.setProperty("--bg-primary", "#f5f5f7");
+    root.style.setProperty("--bg-secondary", "#eeeef0");
+    root.style.setProperty("--bg-tertiary", "#e5e5ea");
+    root.style.setProperty("--bg-elevated", "#dddde2");
+    root.style.setProperty("--bg-surface", "#d5d5dc");
+    root.style.setProperty("--bg-hover", "#ccccd5");
+    root.style.setProperty("--bg-card", "#ffffff");
+    root.style.setProperty("--border-subtle", "rgba(0, 0, 0, 0.06)");
+    root.style.setProperty("--border-default", "rgba(0, 0, 0, 0.10)");
+    root.style.setProperty("--border-strong", "rgba(0, 0, 0, 0.18)");
+    root.style.setProperty("--text-primary", "#1a1a2e");
+    root.style.setProperty("--text-secondary", "#555570");
+    root.style.setProperty("--text-muted", "#8888a0");
+    root.style.setProperty("--text-dim", "#aaaabc");
+    root.style.setProperty("--glass-bg", "rgba(245, 245, 247, 0.88)");
+    root.style.setProperty("--glass-border", "rgba(0, 0, 0, 0.08)");
+    root.style.setProperty("--overlay-bg", "rgba(0, 0, 0, 0.3)");
+    root.style.setProperty("--shadow-sm", "0 2px 8px rgba(0, 0, 0, 0.08)");
+    root.style.setProperty("--shadow-md", "0 8px 32px rgba(0, 0, 0, 0.12)");
+    root.style.setProperty("--shadow-lg", "0 24px 80px rgba(0, 0, 0, 0.16)");
+    root.style.setProperty("color-scheme", "light");
+  } else {
+    root.style.setProperty("--bg-primary", "#08080d");
+    root.style.setProperty("--bg-secondary", "#0e0e15");
+    root.style.setProperty("--bg-tertiary", "#14141e");
+    root.style.setProperty("--bg-elevated", "#1a1a28");
+    root.style.setProperty("--bg-surface", "#20202f");
+    root.style.setProperty("--bg-hover", "#282840");
+    root.style.setProperty("--bg-card", "#12121c");
+    root.style.setProperty("--border-subtle", "rgba(255, 255, 255, 0.04)");
+    root.style.setProperty("--border-default", "rgba(255, 255, 255, 0.08)");
+    root.style.setProperty("--border-strong", "rgba(255, 255, 255, 0.14)");
+    root.style.setProperty("--text-primary", "#f0f0f5");
+    root.style.setProperty("--text-secondary", "#9898b0");
+    root.style.setProperty("--text-muted", "#555570");
+    root.style.setProperty("--text-dim", "#3a3a50");
+    root.style.setProperty("--glass-bg", "rgba(14, 14, 21, 0.85)");
+    root.style.setProperty("--glass-border", "rgba(255, 255, 255, 0.06)");
+    root.style.setProperty("--overlay-bg", "rgba(0, 0, 0, 0.5)");
+    root.style.setProperty("--shadow-sm", "0 2px 8px rgba(0, 0, 0, 0.3)");
+    root.style.setProperty("--shadow-md", "0 8px 32px rgba(0, 0, 0, 0.4)");
+    root.style.setProperty("--shadow-lg", "0 24px 80px rgba(0, 0, 0, 0.5)");
+    root.style.setProperty("color-scheme", "dark");
+  }
+}
+
 interface LauncherState {
   /* Navigation */
   currentView: NavView;
@@ -27,11 +108,18 @@ interface LauncherState {
   refreshAppMeta: (id?: string) => Promise<void>;
   bumpAppVersion: (id: string, bumpType: "major" | "minor" | "patch" | "auto") => Promise<string | null>;
   installApp: (id: string) => Promise<boolean>;
+  uninstallApp: (id: string) => Promise<boolean>;
   checkInstallStatus: () => Promise<void>;
 
   /* Install directory */
   installDir: string;
   setInstallDir: (dir: string) => Promise<void>;
+
+  /* Appearance */
+  theme: "dark" | "light";
+  accentColor: string;
+  setTheme: (theme: "dark" | "light") => void;
+  setAccentColor: (color: string) => void;
 
   /* Projects */
   projects: Project[];
@@ -169,6 +257,54 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
     set({ installDir: dir });
     // Re-check install status with new directory
     await get().checkInstallStatus();
+  },
+
+  /* Appearance */
+  theme: "dark" as "dark" | "light",
+  accentColor: "#7c5cfc",
+  setTheme: (theme) => {
+    set({ theme });
+    applyTheme(theme, get().accentColor);
+    window.electronAPI?.writeSettings({ theme });
+  },
+  setAccentColor: (color) => {
+    set({ accentColor: color });
+    applyTheme(get().theme, color);
+    window.electronAPI?.writeSettings({ accentColor: color });
+  },
+
+  uninstallApp: async (id) => {
+    const app = get().apps.find((a) => a.id === id);
+    if (!app) return false;
+
+    try {
+      const result = await window.electronAPI?.uninstallApp({
+        appId: app.id,
+        installPath: app.installPath || app.sourcePath,
+      });
+
+      if (result?.uninstalled) {
+        set((s) => ({
+          apps: s.apps.map((a) =>
+            a.id === id
+              ? {
+                  ...a,
+                  installed: false,
+                  installing: false,
+                  installPath: undefined,
+                  sourcePath: undefined,
+                  isRunning: false,
+                }
+              : a
+          ),
+        }));
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error("Failed to uninstall app:", err);
+      return false;
+    }
   },
 
   launchApp: async (id) => {
@@ -381,6 +517,17 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
     try {
       const installDir = await window.electronAPI?.getInstallDir();
       if (installDir) set({ installDir: installDir as string });
+    } catch { /* browser mode */ }
+
+    // Hydrate theme/accent settings
+    try {
+      const settings = await window.electronAPI?.readSettings();
+      if (settings) {
+        const theme = (settings.theme as "dark" | "light") || "dark";
+        const accentColor = (settings.accentColor as string) || "#7c5cfc";
+        set({ theme, accentColor });
+        applyTheme(theme, accentColor);
+      }
     } catch { /* browser mode */ }
 
     // Check which apps are actually installed on disk

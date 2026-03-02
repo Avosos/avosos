@@ -7,6 +7,7 @@ import {
   ExternalLink,
   FolderOpen,
   Download,
+  Trash2,
   Settings,
   Package,
   Clock,
@@ -34,7 +35,7 @@ import type { AppPlugin, ChangelogEntry } from "@/types";
 type DetailTab = "overview" | "versions" | "plugins" | "compatibility" | "changelog";
 
 export default function AppDetailView() {
-  const { selectedAppId, apps, setView, launchApp, installApp } = useLauncherStore();
+  const { selectedAppId, apps, setView, launchApp, installApp, uninstallApp } = useLauncherStore();
   const [activeTab, setActiveTab] = useState<DetailTab>("overview");
   const [selectedVersion, setSelectedVersion] = useState<string | null>(null);
 
@@ -235,6 +236,26 @@ export default function AppDetailView() {
                 >
                   <FolderOpen size={13} />
                   Open Source
+                </button>
+              )}
+
+              {app.installed && (
+                <button
+                  className="btn-secondary"
+                  style={{
+                    width: "100%",
+                    justifyContent: "center",
+                    color: "var(--error)",
+                    borderColor: "var(--error-muted)",
+                  }}
+                  onClick={() => {
+                    if (confirm(`Uninstall ${app.name}? This will delete all local files.`)) {
+                      uninstallApp(app.id);
+                    }
+                  }}
+                >
+                  <Trash2 size={13} />
+                  Uninstall
                 </button>
               )}
             </div>

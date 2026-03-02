@@ -28,10 +28,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
   launchApp: (config) => ipcRenderer.invoke("app:launch", config),
   checkInstalled: (appPath) => ipcRenderer.invoke("app:checkInstalled", appPath),
   installApp: (config) => ipcRenderer.invoke("app:install", config),
+  uninstallApp: (config) => ipcRenderer.invoke("app:uninstall", config),
 
   // Install directory settings
   getInstallDir: () => ipcRenderer.invoke("settings:getInstallDir"),
   setInstallDir: (dirPath) => ipcRenderer.invoke("settings:setInstallDir", dirPath),
+
+  // Settings (general key-value)
+  readSettings: () => ipcRenderer.invoke("settings:read"),
+  writeSettings: (patch) => ipcRenderer.invoke("settings:write", patch),
 
   // Project metadata & versioning
   getProjectMeta: (sourcePath) => ipcRenderer.invoke("app:getProjectMeta", sourcePath),

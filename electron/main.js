@@ -169,6 +169,17 @@ ipcMain.handle("settings:setInstallDir", (_event, dirPath) => {
   return true;
 });
 
+ipcMain.handle("settings:read", () => {
+  return readSettings();
+});
+
+ipcMain.handle("settings:write", (_event, patch) => {
+  const settings = readSettings();
+  Object.assign(settings, patch);
+  writeSettings(settings);
+  return true;
+});
+
 // ─── Check if application is installed ────────────────────
 ipcMain.handle("app:checkInstalled", (_event, appPath) => {
   if (!appPath) return false;
@@ -244,6 +255,9 @@ ipcMain.handle("app:install", async (_event, { appId, repoUrl, name }) => {
         // Clean up archive
         try { fs.unlinkSync(archivePath); } catch { /* ignore */ }
 
+        // Post-install: install dependencies
+        await postInstallDeps(appDir);
+
         return { installed: true, installPath: appDir, method: "release" };
       }
 
@@ -258,6 +272,9 @@ ipcMain.handle("app:install", async (_event, { appId, repoUrl, name }) => {
         await extractZip(archivePath, appDir);
         try { fs.unlinkSync(archivePath); } catch { /* ignore */ }
 
+        // Post-install: install dependencies
+        await postInstallDeps(appDir);
+
         return { installed: true, installPath: appDir, method: "source-release" };
       }
     } catch (err) {
@@ -269,6 +286,10 @@ ipcMain.handle("app:install", async (_event, { appId, repoUrl, name }) => {
     try {
       const { execSync: ex } = require("child_process");
       ex(`git clone "${repoUrl}" "${appDir}"`, { stdio: "pipe", timeout: 120000 });
+
+      // Post-install: install dependencies
+      await postInstallDeps(appDir);
+
       return { installed: true, installPath: appDir, method: "git-clone" };
     } catch (cloneErr) {
       // Clean up partial clone
@@ -278,6 +299,47 @@ ipcMain.handle("app:install", async (_event, { appId, repoUrl, name }) => {
   }
 
   throw new Error(`Cannot install ${name}: no repository URL configured`);
+});
+
+// ─── Post-install: install dependencies ───────────────────
+async function postInstallDeps(appDir) {
+  const { execSync: ex } = require("child_process");
+
+  // Node projects: npm install
+  if (fs.existsSync(path.join(appDir, "package.json"))) {
+    try {
+      const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
+      ex(`${npmCmd} install`, { cwd: appDir, stdio: "pipe", timeout: 300000 });
+    } catch (err) {
+      console.error("npm install failed (non-fatal):", err.message);
+    }
+  }
+
+  // Rust projects: cargo build
+  if (fs.existsSync(path.join(appDir, "Cargo.toml"))) {
+    try {
+      const cargoCmd = process.platform === "win32" ? "cargo.cmd" : "cargo";
+      ex(`${cargoCmd} build --release`, { cwd: appDir, stdio: "pipe", timeout: 600000 });
+    } catch (err) {
+      console.error("cargo build failed (non-fatal):", err.message);
+    }
+  }
+}
+
+// ─── Uninstall application ────────────────────────────────
+ipcMain.handle("app:uninstall", async (_event, { appId, installPath }) => {
+  if (!installPath) {
+    // Try default path
+    const installDir = getInstallDir();
+    installPath = path.join(installDir, appId);
+  }
+
+  if (fs.existsSync(installPath)) {
+    fs.rmSync(installPath, { recursive: true, force: true });
+    return { uninstalled: true, path: installPath };
+  }
+
+  return { uninstalled: false, path: installPath, reason: "Path not found" };
 });
 
 // ─── Helper: download a file following redirects ──────────
@@ -388,6 +450,18 @@ ipcMain.handle("app:launch", async (_event, config) => {
   if (
     fs.existsSync(path.join(executablePath, "package.json"))
   ) {
+    // Auto-install deps if node_modules missing
+    if (!fs.existsSync(path.join(executablePath, "node_modules"))) {
+      try {
+        const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
+        require("child_process").execSync(`${npmCmd} install`, {
+          cwd: executablePath, stdio: "pipe", timeout: 300000,
+        });
+      } catch (err) {
+        console.error("Auto npm install failed:", err.message);
+      }
+    }
+
     const pkgPath = path.join(executablePath, "package.json");
     const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
 

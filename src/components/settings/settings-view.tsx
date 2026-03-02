@@ -286,6 +286,17 @@ function GeneralSettings() {
 }
 
 function AppearanceSettings() {
+  const { theme, accentColor, setTheme, setAccentColor } = useLauncherStore();
+
+  const ACCENT_COLORS = [
+    { color: "#7c5cfc", label: "Purple" },
+    { color: "#3b82f6", label: "Blue" },
+    { color: "#10b981", label: "Green" },
+    { color: "#f59e0b", label: "Amber" },
+    { color: "#ef4444", label: "Red" },
+    { color: "#ec4899", label: "Pink" },
+  ];
+
   return (
     <div className="animate-fadeIn">
       <SettingGroup title="Appearance" description="Customize the launcher look and feel">
@@ -299,21 +310,23 @@ function AppearanceSettings() {
               padding: 3,
             }}
           >
-            {["Dark", "Light", "System"].map((theme) => (
+            {(["dark", "light"] as const).map((t) => (
               <button
-                key={theme}
+                key={t}
+                onClick={() => setTheme(t)}
                 style={{
                   padding: "5px 14px",
                   borderRadius: 6,
                   border: "none",
-                  background: theme === "Dark" ? "var(--bg-hover)" : "transparent",
-                  color: theme === "Dark" ? "var(--text-primary)" : "var(--text-muted)",
+                  background: theme === t ? "var(--bg-hover)" : "transparent",
+                  color: theme === t ? "var(--text-primary)" : "var(--text-muted)",
                   fontSize: 12,
                   fontWeight: 500,
                   cursor: "pointer",
+                  textTransform: "capitalize",
                 }}
               >
-                {theme}
+                {t}
               </button>
             ))}
           </div>
@@ -323,24 +336,25 @@ function AppearanceSettings() {
           description="Primary color used throughout the launcher"
         >
           <div style={{ display: "flex", gap: 6 }}>
-            {["#7c5cfc", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#ec4899"].map(
-              (color) => (
-                <button
-                  key={color}
-                  style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: "50%",
-                    border:
-                      color === "#7c5cfc"
-                        ? "2px solid white"
-                        : "2px solid transparent",
-                    background: color,
-                    cursor: "pointer",
-                  }}
-                />
-              )
-            )}
+            {ACCENT_COLORS.map(({ color }) => (
+              <button
+                key={color}
+                onClick={() => setAccentColor(color)}
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: "50%",
+                  border:
+                    accentColor === color
+                      ? "2px solid var(--text-primary)"
+                      : "2px solid transparent",
+                  background: color,
+                  cursor: "pointer",
+                  transition: "border-color 0.15s",
+                }}
+                title={color}
+              />
+            ))}
           </div>
         </SettingRow>
       </SettingGroup>
