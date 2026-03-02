@@ -1701,11 +1701,49 @@ function MaintenanceSection() {
 /* ═══════════════════════════════════════════════════════════ */
 
 function SecuritySection() {
-  const [adminLock, setAdminLock] = useState(false);
-  const [confirmLaunch, setConfirmLaunch] = useState(false);
-  const [restrictPaths, setRestrictPaths] = useState(false);
-  const [allowedPaths, setAllowedPaths] = useState<string[]>([]);
-  const [devMode, setDevMode] = useState(true);
+  const [adminLock, setAdminLockLocal] = useState(false);
+  const [confirmDestructive, setConfirmDestructiveLocal] = useState(false);
+  const [restrictPaths, setRestrictPathsLocal] = useState(false);
+  const [allowedPaths, setAllowedPathsLocal] = useState<string[]>([]);
+  const [devMode, setDevModeLocal] = useState(true);
+
+  // Hydrate from persisted settings on mount
+  useEffect(() => {
+    (async () => {
+      const s = await window.electronAPI?.readSettings();
+      if (s) {
+        if (s.adminLock !== undefined) setAdminLockLocal(s.adminLock);
+        if (s.adminConfirmDestructive !== undefined) setConfirmDestructiveLocal(s.adminConfirmDestructive);
+        if (s.adminRestrictPaths !== undefined) setRestrictPathsLocal(s.adminRestrictPaths);
+        if (s.adminAllowedPaths !== undefined) setAllowedPathsLocal(s.adminAllowedPaths);
+        if (s.adminDevMode !== undefined) setDevModeLocal(s.adminDevMode);
+      }
+    })();
+  }, []);
+
+  const persist = (patch: Record<string, unknown>) =>
+    window.electronAPI?.writeSettings(patch);
+
+  const setAdminLock = (v: boolean) => {
+    setAdminLockLocal(v);
+    persist({ adminLock: v });
+  };
+  const setConfirmDestructive = (v: boolean) => {
+    setConfirmDestructiveLocal(v);
+    persist({ adminConfirmDestructive: v });
+  };
+  const setDevMode = (v: boolean) => {
+    setDevModeLocal(v);
+    persist({ adminDevMode: v });
+  };
+  const setRestrictPaths = (v: boolean) => {
+    setRestrictPathsLocal(v);
+    persist({ adminRestrictPaths: v });
+  };
+  const setAllowedPaths = (paths: string[]) => {
+    setAllowedPathsLocal(paths);
+    persist({ adminAllowedPaths: paths });
+  };
 
   const handleAddPath = async () => {
     const dir =
@@ -1755,9 +1793,9 @@ function SecuritySection() {
           description="Show a confirmation dialog before clearing caches or importing configs"
         >
           <Toggle
-            enabled={confirmLaunch}
+            enabled={confirmDestructive}
             onChange={() =>
-              setConfirmLaunch(!confirmLaunch)
+              setConfirmDestructive(!confirmDestructive)
             }
           />
         </SettingRow>

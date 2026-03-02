@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Plus,
   Settings,
+  Trash2,
 } from "lucide-react";
 import { useLauncherStore } from "@/stores/launcher-store";
 import AppIcon from "@/components/icons/app-icon";
@@ -31,8 +32,23 @@ const ICON_MAP: Record<string, React.ElementType> = {
 };
 
 export default function ProfilesView() {
-  const { profiles, activeProfileId, setActiveProfile, apps } =
+  const { profiles, activeProfileId, setActiveProfile, addProfile, removeProfile, apps } =
     useLauncherStore();
+
+  const handleCreateProfile = () => {
+    const name = window.prompt("Profile name:");
+    if (!name?.trim()) return;
+    const colors = ["#6366f1", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6", "#ec4899"];
+    const icons = Object.keys(ICON_MAP);
+    addProfile({
+      id: `profile-${Date.now()}`,
+      name: name.trim(),
+      description: "Custom environment profile",
+      icon: icons[Math.floor(Math.random() * icons.length)],
+      color: colors[Math.floor(Math.random() * colors.length)],
+      apps: [],
+    });
+  };
 
   return (
     <div
@@ -74,12 +90,18 @@ export default function ProfilesView() {
             profile={profile}
             isActive={profile.id === activeProfileId}
             onActivate={() => setActiveProfile(profile.id)}
+            onRemove={() => {
+              if (confirm(`Remove profile "${profile.name}"?`)) {
+                removeProfile(profile.id);
+              }
+            }}
             apps={apps}
           />
         ))}
 
         {/* Add profile placeholder */}
         <div
+          onClick={handleCreateProfile}
           style={{
             display: "flex",
             alignItems: "center",
@@ -119,11 +141,13 @@ function ProfileCard({
   profile,
   isActive,
   onActivate,
+  onRemove,
   apps,
 }: {
   profile: EnvironmentProfile;
   isActive: boolean;
   onActivate: () => void;
+  onRemove: () => void;
   apps: import("@/types").AppDefinition[];
 }) {
   const IconComp = ICON_MAP[profile.icon] ?? Layout;
@@ -274,6 +298,7 @@ function ProfileCard({
             <button
               className="btn-secondary"
               style={{ flex: 1, justifyContent: "center" }}
+              onClick={() => alert("Profile editor coming soon")}
             >
               <Settings size={13} />
               Configure
@@ -288,6 +313,14 @@ function ProfileCard({
               Activate
             </button>
           )}
+          <button
+            className="btn-ghost"
+            style={{ padding: "6px 10px", color: "var(--error)" }}
+            onClick={onRemove}
+            title="Remove profile"
+          >
+            <Trash2 size={14} />
+          </button>
         </div>
       </div>
     </div>

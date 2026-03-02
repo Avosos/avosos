@@ -484,10 +484,11 @@ function OverviewTab({ app }: { app: import("@/types").AppDefinition }) {
               style={{
                 fontSize: 11,
                 fontWeight: 600,
-                color: app.autoUpdate ? "var(--success)" : "var(--text-muted)",
+                color: "var(--text-muted)",
               }}
+              title="Auto-update coming soon"
             >
-              {app.autoUpdate ? "Enabled" : "Disabled"}
+              Coming Soon
             </span>
           </div>
         </InfoCard>
@@ -777,7 +778,7 @@ function VersionsTab({
   selectedVersion: string;
   onSelectVersion: (v: string) => void;
 }) {
-  const { bumpAppVersion } = useLauncherStore();
+  const { bumpAppVersion, launchApp, installApp } = useLauncherStore();
   const [bumping, setBumping] = useState<string | null>(null);
 
   const handleBump = async (bumpType: "major" | "minor" | "patch" | "auto") => {
@@ -929,12 +930,12 @@ function VersionsTab({
               </div>
               <div style={{ display: "flex", gap: 6 }}>
                 {isCurrent ? (
-                  <button className="btn-primary" style={{ padding: "6px 14px" }}>
+                  <button className="btn-primary" style={{ padding: "6px 14px" }} onClick={() => launchApp(app.id)}>
                     <Play size={12} fill="white" />
                     Launch
                   </button>
                 ) : (
-                  <button className="btn-secondary" style={{ padding: "6px 14px" }}>
+                  <button className="btn-secondary" style={{ padding: "6px 14px" }} onClick={() => alert(`Version-specific install not yet supported. Install the latest from the overview tab.`)}>
                     <Download size={12} />
                     Install
                   </button>
@@ -1057,6 +1058,7 @@ function PluginCard({
       <button
         className={plugin.installed ? "btn-secondary" : "btn-primary"}
         style={{ width: "100%", justifyContent: "center", padding: "7px 14px" }}
+        onClick={() => alert(`Plugin management for ${appName} coming soon`)}
       >
         {plugin.installed ? (
           <>
