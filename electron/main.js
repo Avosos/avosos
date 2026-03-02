@@ -211,7 +211,7 @@ ipcMain.handle("app:install", async (_event, { appId, repoUrl, name }) => {
     const apiUrl = `https://api.github.com/repos/${repoPath}/releases/latest`;
 
     try {
-      // Fetch latest release info
+      // Fetch latest release info (null if no releases exist)
       const releaseInfo = await new Promise((resolve, reject) => {
         const req = https.get(apiUrl, {
           headers: { "User-Agent": "Avosos-Launcher/0.1.0", Accept: "application/vnd.github+json" },
@@ -229,11 +229,19 @@ ipcMain.handle("app:install", async (_event, { appId, repoUrl, name }) => {
           res.on("data", (chunk) => (data += chunk));
           res.on("end", () => {
             if (res.statusCode === 200) resolve(JSON.parse(data));
+            // 404 = no releases published — not an error, just skip to git clone
+            else if (res.statusCode === 404) resolve(null);
             else reject(new Error(`GitHub API returned ${res.statusCode}: ${data}`));
           });
         });
         req.on("error", reject);
       });
+
+      // No releases published — skip directly to git clone
+      if (!releaseInfo) {
+        console.log(`No GitHub releases for ${repoPath}, will clone instead.`);
+        throw { _noReleases: true };
+      }
 
       // Look for a suitable archive asset
       const assets = releaseInfo.assets || [];
@@ -282,7 +290,9 @@ ipcMain.handle("app:install", async (_event, { appId, repoUrl, name }) => {
       }
     } catch (err) {
       // Fall back to cloning via git if release download fails
-      console.error("Release download failed, falling back to git clone:", err.message);
+      if (!err._noReleases) {
+        console.error("Release download failed, falling back to git clone:", err.message);
+      }
     }
 
     // Fallback: git clone
@@ -338,7 +348,15 @@ ipcMain.handle("app:uninstall", async (_event, { appId, installPath }) => {
   }
 
   if (fs.existsSync(installPath)) {
-    fs.rmSync(installPath, { recursive: true, force: true });
+    // On Windows, node_modules / .git often contain read-only files
+    // which cause EPERM. Strip read-only attributes first.
+    if (process.platform === "win32") {
+      try {
+        const { execSync: ex } = require("child_process");
+        ex(`attrib -R "${installPath}\\*.*" /S /D`, { stdio: "pipe", timeout: 30000 });
+      } catch { /* best effort */ }
+    }
+    fs.rmSync(installPath, { recursive: true, force: true, maxRetries: 3, retryDelay: 500 });
     return { uninstalled: true, path: installPath };
   }
 
@@ -899,6 +917,11 @@ ipcMain.handle("admin:scanDirectory", async (_event, dirPath) => {
 });
 
 // ─── App lifecycle ────────────────────────────────────────
+// Set app user model ID so Windows shows our icon in the taskbar
+if (process.platform === "win32") {
+  app.setAppUserModelId("com.avosos.launcher");
+}
+
 app.whenReady().then(createWindow);
 
 app.on("window-all-closed", () => {
