@@ -369,7 +369,7 @@ function OverviewSection() {
           label="Registered Apps"
           value={apps.length}
           icon={Package}
-          color="#7c5cfc"
+          color="var(--accent)"
           sub={`${installedCount} installed, ${withSource} with source`}
         />
         <StatCard

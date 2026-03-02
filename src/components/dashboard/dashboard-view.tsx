@@ -71,7 +71,7 @@ export default function DashboardView() {
             width: 200,
             height: 200,
             borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(124,92,252,0.15), transparent 70%)",
+            background: "radial-gradient(circle, var(--accent-glow), transparent 70%)",
             pointerEvents: "none",
           }}
         />
