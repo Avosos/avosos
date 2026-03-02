@@ -331,7 +331,7 @@ function AppearanceSettings() {
               padding: 3,
             }}
           >
-            {(["dark", "light"] as const).map((t) => (
+            {(["dark", "grey", "light"] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setTheme(t)}
@@ -347,7 +347,7 @@ function AppearanceSettings() {
                   textTransform: "capitalize",
                 }}
               >
-                {t}
+                {t === "grey" ? "Grey" : t}
               </button>
             ))}
           </div>

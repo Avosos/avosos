@@ -495,7 +495,7 @@ function flattenSingleSubdir(dir) {
 
 // ─── Launch external applications ─────────────────────────
 ipcMain.handle("app:launch", async (_event, config) => {
-  const { executablePath, args = [], cwd } = config;
+  const { executablePath, args = [], cwd, launchScript } = config;
 
   // If it's a directory with Cargo.toml, try running the compiled binary directly
   if (fs.existsSync(path.join(executablePath, "Cargo.toml"))) {
@@ -556,9 +556,16 @@ ipcMain.handle("app:launch", async (_event, config) => {
     const scripts = pkg.scripts || {};
     let cmd, cmdArgs;
 
-    if (scripts["dev:electron"]) {
+    // Use the explicit launchScript from the app registry when available
+    if (launchScript && scripts[launchScript]) {
+      cmd = process.platform === "win32" ? "npm.cmd" : "npm";
+      cmdArgs = ["run", launchScript];
+    } else if (scripts["dev:electron"]) {
       cmd = process.platform === "win32" ? "npm.cmd" : "npm";
       cmdArgs = ["run", "dev:electron"];
+    } else if (scripts.dev) {
+      cmd = process.platform === "win32" ? "npm.cmd" : "npm";
+      cmdArgs = ["run", "dev"];
     } else if (scripts.start) {
       cmd = process.platform === "win32" ? "npm.cmd" : "npm";
       cmdArgs = ["run", "start"];

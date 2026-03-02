@@ -29,7 +29,7 @@ function lighten(hex: string, pct: number): string {
   return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
 }
 
-function applyTheme(theme: "dark" | "light", accent: string) {
+function applyTheme(theme: "dark" | "light" | "grey", accent: string) {
   const root = document.documentElement;
   const rgb = hexToRgb(accent);
   if (!rgb) return;
@@ -68,6 +68,28 @@ function applyTheme(theme: "dark" | "light", accent: string) {
     root.style.setProperty("--shadow-md", "0 8px 32px rgba(0, 0, 0, 0.12)");
     root.style.setProperty("--shadow-lg", "0 24px 80px rgba(0, 0, 0, 0.16)");
     root.style.setProperty("color-scheme", "light");
+  } else if (theme === "grey") {
+    root.style.setProperty("--bg-primary", "#1e1f22");
+    root.style.setProperty("--bg-secondary", "#2b2d31");
+    root.style.setProperty("--bg-tertiary", "#313338");
+    root.style.setProperty("--bg-elevated", "#383a40");
+    root.style.setProperty("--bg-surface", "#404249");
+    root.style.setProperty("--bg-hover", "#4e505899");
+    root.style.setProperty("--bg-card", "#2b2d31");
+    root.style.setProperty("--border-subtle", "rgba(255, 255, 255, 0.05)");
+    root.style.setProperty("--border-default", "rgba(255, 255, 255, 0.08)");
+    root.style.setProperty("--border-strong", "rgba(255, 255, 255, 0.13)");
+    root.style.setProperty("--text-primary", "#f2f3f5");
+    root.style.setProperty("--text-secondary", "#b5bac1");
+    root.style.setProperty("--text-muted", "#949ba4");
+    root.style.setProperty("--text-dim", "#6d6f78");
+    root.style.setProperty("--glass-bg", "rgba(43, 45, 49, 0.88)");
+    root.style.setProperty("--glass-border", "rgba(255, 255, 255, 0.06)");
+    root.style.setProperty("--overlay-bg", "rgba(0, 0, 0, 0.45)");
+    root.style.setProperty("--shadow-sm", "0 2px 8px rgba(0, 0, 0, 0.2)");
+    root.style.setProperty("--shadow-md", "0 8px 32px rgba(0, 0, 0, 0.3)");
+    root.style.setProperty("--shadow-lg", "0 24px 80px rgba(0, 0, 0, 0.4)");
+    root.style.setProperty("color-scheme", "dark");
   } else {
     root.style.setProperty("--bg-primary", "#08080d");
     root.style.setProperty("--bg-secondary", "#0e0e15");
@@ -117,9 +139,9 @@ interface LauncherState {
   setInstallDir: (dir: string) => Promise<void>;
 
   /* Appearance */
-  theme: "dark" | "light";
+  theme: "dark" | "light" | "grey";
   accentColor: string;
-  setTheme: (theme: "dark" | "light") => void;
+  setTheme: (theme: "dark" | "light" | "grey") => void;
   setAccentColor: (color: string) => void;
 
   /* General settings (persisted) */
@@ -274,7 +296,7 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
   },
 
   /* Appearance */
-  theme: "dark" as "dark" | "light",
+  theme: "dark" as "dark" | "light" | "grey",
   accentColor: "#7c5cfc",
   setTheme: (theme) => {
     set({ theme });
@@ -367,6 +389,7 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
       const launchConfig = {
         executablePath: app.sourcePath || app.executablePath || "",
         args: app.launchArgs || [],
+        launchScript: app.launchScript,
       };
 
       await window.electronAPI?.launchApp(launchConfig);
@@ -598,7 +621,7 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
     try {
       const settings = await window.electronAPI?.readSettings();
       if (settings) {
-        const theme = (settings.theme as "dark" | "light") || "dark";
+        const theme = (settings.theme as "dark" | "light" | "grey") || "dark";
         const accentColor = (settings.accentColor as string) || "#7c5cfc";
         set({
           theme,

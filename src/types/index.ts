@@ -208,6 +208,7 @@ declare global {
         executablePath: string;
         args?: string[];
         cwd?: string;
+        launchScript?: string;
       }) => Promise<{ pid: number; launched: boolean }>;
       checkInstalled: (appPath: string) => Promise<boolean>;
       installApp: (config: {

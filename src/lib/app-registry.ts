@@ -118,6 +118,75 @@ export const APP_REGISTRY: AppDefinition[] = [
       },
     ],
   },
+
+  // ── StreamPad ──────────────────────────────────────────────
+  {
+    id: "streampad",
+    name: "StreamPad",
+    slug: "streampad",
+    description: "Turn your Launchpad into a macro & automation surface",
+    longDescription:
+      "StreamPad transforms your Novation Launchpad into a fully configurable macro " +
+      "and automation surface — like a Stream Deck, but with 64+ RGB pads, velocity " +
+      "sensitivity, and MIDI flexibility. Features real-time bidirectional MIDI " +
+      "communication, full RGB LED control with animations, multi-profile support with " +
+      "auto-switching, layers & banks, advanced input detection (hold, double/triple-tap, " +
+      "velocity, aftertouch), and an extensible plugin architecture for OBS, IDE " +
+      "integration, media control, smart home, and more.",
+    vendor: "Avosos",
+    version: "1.0.0",
+    availableVersions: ["1.0.0"],
+    category: "utilities",
+    tags: [
+      "MIDI",
+      "launchpad",
+      "macro",
+      "streamdeck",
+      "automation",
+      "LED",
+      "electron",
+      "productivity",
+    ],
+    icon: "streampad",
+    installed: false,
+    repoUrl: "https://github.com/Avosos/streampad",
+    launchScript: "dev",
+    size: "62 MB",
+    lastUpdated: Date.now(),
+    autoUpdate: true,
+    plugins: [
+      {
+        id: "sp-obs",
+        name: "OBS Control",
+        version: "1.0.0",
+        installed: false,
+        description: "Control OBS scenes, sources, and streaming via pad presses",
+      },
+      {
+        id: "sp-media",
+        name: "Media Control",
+        version: "1.0.0",
+        installed: false,
+        description: "Play, pause, skip, and control volume from your Launchpad",
+      },
+      {
+        id: "sp-smart-home",
+        name: "Smart Home",
+        version: "0.9.0",
+        installed: false,
+        description: "Toggle smart lights, scenes, and devices via HTTP/MQTT",
+      },
+    ],
+    compatibility: [
+      {
+        appVersion: "1.0.0",
+        os: ["win32", "darwin", "linux"],
+        minRam: 512 * 1024 * 1024,
+        notes:
+          "Requires a Novation Launchpad (Pro MK2, MK3, X, Mini MK3, or MK2)",
+      },
+    ],
+  },
 ];
 
 export const CATEGORY_META: Record<
