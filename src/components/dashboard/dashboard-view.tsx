@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Play,
   Download,
@@ -40,6 +40,24 @@ export default function DashboardView() {
     .slice(0, 4);
 
   const runningApps = apps.filter((a) => a.isRunning);
+
+  // Real disk info
+  const [diskInfo, setDiskInfo] = useState<{ total: number; free: number } | null>(null);
+  useEffect(() => {
+    window.electronAPI?.getDiskInfo?.().then((d) => d && setDiskInfo(d)).catch(() => {});
+  }, []);
+
+  const diskUsedPct = diskInfo ? Math.round(((diskInfo.total - diskInfo.free) / diskInfo.total) * 100) : 0;
+  const diskDetail = diskInfo
+    ? `${formatBytes(diskInfo.total - diskInfo.free)} / ${formatBytes(diskInfo.total)}`
+    : "detecting…";
+
+  // Update status – derive from apps instead of hardcoded
+  const outdatedApps = apps.filter((a) => a.installed && a.updateAvailable);
+  const updateText =
+    outdatedApps.length === 0
+      ? "All applications are up to date."
+      : `${outdatedApps.length} app${outdatedApps.length > 1 ? "s" : ""} can be updated.`;
 
   return (
     <div
@@ -288,7 +306,7 @@ export default function DashboardView() {
                 icon={<MonitorSpeaker size={14} />}
                 label="GPU"
                 value={0}
-                detail={gpuInfo?.name ?? "detecting…"}
+                detail={gpuInfo?.name ?? "N/A"}
                 color="var(--warning)"
               />
 
@@ -296,8 +314,8 @@ export default function DashboardView() {
               <SystemStatBar
                 icon={<HardDrive size={14} />}
                 label="Disk"
-                value={0}
-                detail="—"
+                value={diskUsedPct}
+                detail={diskDetail}
                 color="var(--success)"
               />
             </div>
@@ -388,7 +406,7 @@ export default function DashboardView() {
               </span>
             </div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-              All applications are up to date.
+              {updateText}
             </div>
           </div>
         </div>
