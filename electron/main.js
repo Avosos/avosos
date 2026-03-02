@@ -14,12 +14,15 @@ const os = require("os");
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 let mainWindow = null;
 
-// ─── Data directory for launcher state ─────────────────────
-// Everything lives under AppData/Roaming/avosos:
-//   avosos/launcher  — launcher settings & state
+// ─── Unified data directory under AppData/Roaming/avosos ──
+//   avosos/launcher  — launcher settings, state & Electron userData (cache, etc.)
 //   avosos/apps      — installed applications
 const dataDir = path.join(app.getPath("appData"), "avosos", "launcher");
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+
+// Redirect Electron's userData so caches/localStorage also land in avosos/launcher
+// instead of the default avosos-launcher folder.
+app.setPath("userData", dataDir);
 
 function getIconPath() {
   if (process.platform === "win32")
