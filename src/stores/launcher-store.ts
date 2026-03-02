@@ -26,6 +26,12 @@ interface LauncherState {
   stopApp: (id: string) => void;
   refreshAppMeta: (id?: string) => Promise<void>;
   bumpAppVersion: (id: string, bumpType: "major" | "minor" | "patch" | "auto") => Promise<string | null>;
+  installApp: (id: string) => Promise<boolean>;
+  checkInstallStatus: () => Promise<void>;
+
+  /* Install directory */
+  installDir: string;
+  setInstallDir: (dir: string) => Promise<void>;
 
   /* Projects */
   projects: Project[];
@@ -66,11 +72,126 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
   /* ── Applications ─────────────────────────────────────── */
   apps: APP_REGISTRY,
   runningApps: new Set(),
+
+  installApp: async (id) => {
+    const app = get().apps.find((a) => a.id === id);
+    if (!app) return false;
+
+    try {
+      // Mark as installing in the UI
+      set((s) => ({
+        apps: s.apps.map((a) =>
+          a.id === id ? { ...a, installing: true } : a
+        ),
+      }));
+
+      const result = await window.electronAPI?.installApp({
+        appId: app.id,
+        repoUrl: app.repoUrl,
+        name: app.name,
+      });
+
+      if (result?.installed) {
+        set((s) => ({
+          apps: s.apps.map((a) =>
+            a.id === id
+              ? {
+                  ...a,
+                  installed: true,
+                  installing: false,
+                  installPath: result.installPath,
+                  sourcePath: result.installPath,
+                }
+              : a
+          ),
+        }));
+        // Refresh metadata now that the app is installed
+        await get().refreshAppMeta(id);
+        return true;
+      }
+      // Reset installing state on failure
+      set((s) => ({
+        apps: s.apps.map((a) =>
+          a.id === id ? { ...a, installing: false } : a
+        ),
+      }));
+      return false;
+    } catch (err) {
+      console.error("Failed to install app:", err);
+      set((s) => ({
+        apps: s.apps.map((a) =>
+          a.id === id ? { ...a, installing: false } : a
+        ),
+      }));
+      return false;
+    }
+  },
+
+  checkInstallStatus: async () => {
+    const installDir = get().installDir;
+    const updates: Record<string, Partial<AppDefinition>> = {};
+
+    await Promise.all(
+      get().apps.map(async (app) => {
+        // Check the install directory for this app
+        const appPath = app.installPath || app.sourcePath;
+        const defaultPath = installDir ? `${installDir}\\${app.id}` : null;
+        const pathToCheck = appPath || defaultPath;
+
+        if (pathToCheck) {
+          try {
+            const exists = await window.electronAPI?.checkInstalled(pathToCheck);
+            if (exists) {
+              updates[app.id] = {
+                installed: true,
+                installPath: pathToCheck,
+                sourcePath: pathToCheck,
+              };
+            }
+          } catch { /* ignore */ }
+        }
+      })
+    );
+
+    if (Object.keys(updates).length > 0) {
+      set((s) => ({
+        apps: s.apps.map((a) =>
+          updates[a.id] ? { ...a, ...updates[a.id] } : a
+        ),
+      }));
+    }
+  },
+
+  /* Install directory */
+  installDir: "",
+  setInstallDir: async (dir) => {
+    await window.electronAPI?.setInstallDir(dir);
+    set({ installDir: dir });
+    // Re-check install status with new directory
+    await get().checkInstallStatus();
+  },
+
   launchApp: async (id) => {
     const app = get().apps.find((a) => a.id === id);
     if (!app) return;
 
     try {
+      // Check if the app is installed before launching
+      const appPath = app.sourcePath || app.installPath || app.executablePath || "";
+      if (appPath) {
+        const exists = await window.electronAPI?.checkInstalled(appPath);
+        if (!exists) {
+          console.error(`App not installed at: ${appPath}`);
+          // Mark as not installed so UI can react
+          set((s) => ({
+            apps: s.apps.map((a) =>
+              a.id === id ? { ...a, installed: false } : a
+            ),
+          }));
+          return;
+        }
+      }
+
       const launchConfig = {
         executablePath: app.sourcePath || app.executablePath || "",
         args: app.launchArgs || [],
@@ -255,6 +376,17 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
       const projects = (await window.electronAPI?.readData("projects")) as Project[] | null;
       if (projects) set({ projects });
     } catch { /* first run */ }
+
+    // Hydrate install directory
+    try {
+      const installDir = await window.electronAPI?.getInstallDir();
+      if (installDir) set({ installDir: installDir as string });
+    } catch { /* browser mode */ }
+
+    // Check which apps are actually installed on disk
+    try {
+      await get().checkInstallStatus();
+    } catch { /* browser mode */ }
 
     // System info
     try {

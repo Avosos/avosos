@@ -26,6 +26,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   // Application launching
   launchApp: (config) => ipcRenderer.invoke("app:launch", config),
+  checkInstalled: (appPath) => ipcRenderer.invoke("app:checkInstalled", appPath),
+  installApp: (config) => ipcRenderer.invoke("app:install", config),
+
+  // Install directory settings
+  getInstallDir: () => ipcRenderer.invoke("settings:getInstallDir"),
+  setInstallDir: (dirPath) => ipcRenderer.invoke("settings:setInstallDir", dirPath),
 
   // Project metadata & versioning
   getProjectMeta: (sourcePath) => ipcRenderer.invoke("app:getProjectMeta", sourcePath),

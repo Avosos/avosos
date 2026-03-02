@@ -7,6 +7,7 @@ import {
   List,
   Filter,
   Play,
+  Download,
   ExternalLink,
   ChevronDown,
 } from "lucide-react";
@@ -19,7 +20,7 @@ type ViewMode = "grid" | "list";
 type FilterCategory = "all" | AppCategory;
 
 export default function LibraryView() {
-  const { apps, selectApp, launchApp, searchQuery, setSearchQuery } =
+  const { apps, selectApp, launchApp, installApp, searchQuery, setSearchQuery } =
     useLauncherStore();
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [filterCategory, setFilterCategory] = useState<FilterCategory>("all");
@@ -252,7 +253,7 @@ export default function LibraryView() {
               <GridCard
                 key={app.id}
                 app={app}
-                onLaunch={() => launchApp(app.id)}
+                onLaunch={() => app.installed ? launchApp(app.id) : installApp(app.id)}
                 onDetails={() => selectApp(app.id)}
               />
             ))}
@@ -263,7 +264,7 @@ export default function LibraryView() {
               <ListRow
                 key={app.id}
                 app={app}
-                onLaunch={() => launchApp(app.id)}
+                onLaunch={() => app.installed ? launchApp(app.id) : installApp(app.id)}
                 onDetails={() => selectApp(app.id)}
               />
             ))}
@@ -418,14 +419,26 @@ function GridCard({
         <div style={{ display: "flex", gap: 8 }}>
           <button
             className="btn-primary"
-            style={{ flex: 1, justifyContent: "center", padding: "8px 14px" }}
+            style={{
+              flex: 1,
+              justifyContent: "center",
+              padding: "8px 14px",
+              opacity: app.installing ? 0.7 : 1,
+              cursor: app.installing ? "wait" : "pointer",
+            }}
+            disabled={app.installing}
             onClick={(e) => {
               e.stopPropagation();
               onLaunch();
             }}
           >
-            <Play size={13} fill="white" />
-            Launch
+            {app.installing ? (
+              <><Download size={13} /> Installing…</>
+            ) : !app.installed ? (
+              <><Download size={13} /> Install</>
+            ) : (
+              <><Play size={13} fill="white" /> Launch</>
+            )}
           </button>
           <button
             className="btn-secondary"
@@ -517,14 +530,24 @@ function ListRow({
       <div style={{ display: "flex", gap: 6 }}>
         <button
           className="btn-primary"
-          style={{ padding: "6px 16px" }}
+          style={{
+            padding: "6px 16px",
+            opacity: app.installing ? 0.7 : 1,
+            cursor: app.installing ? "wait" : "pointer",
+          }}
+          disabled={app.installing}
           onClick={(e) => {
             e.stopPropagation();
             onLaunch();
           }}
         >
-          <Play size={12} fill="white" />
-          Launch
+          {app.installing ? (
+            <><Download size={12} /> Installing…</>
+          ) : !app.installed ? (
+            <><Download size={12} /> Install</>
+          ) : (
+            <><Play size={12} fill="white" /> Launch</>
+          )}
         </button>
       </div>
     </div>

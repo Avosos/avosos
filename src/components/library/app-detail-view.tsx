@@ -34,7 +34,7 @@ import type { AppPlugin, ChangelogEntry } from "@/types";
 type DetailTab = "overview" | "versions" | "plugins" | "compatibility" | "changelog";
 
 export default function AppDetailView() {
-  const { selectedAppId, apps, setView, launchApp } = useLauncherStore();
+  const { selectedAppId, apps, setView, launchApp, installApp } = useLauncherStore();
   const [activeTab, setActiveTab] = useState<DetailTab>("overview");
   const [selectedVersion, setSelectedVersion] = useState<string | null>(null);
 
@@ -191,11 +191,25 @@ export default function AppDetailView() {
                   justifyContent: "center",
                   padding: "10px 20px",
                   fontSize: 14,
+                  opacity: app.installing ? 0.7 : 1,
+                  cursor: app.installing ? "wait" : "pointer",
                 }}
-                onClick={() => launchApp(app.id)}
+                disabled={app.installing}
+                onClick={() => {
+                  if (!app.installed && !app.installing) {
+                    installApp(app.id);
+                  } else if (app.installed) {
+                    launchApp(app.id);
+                  }
+                }}
               >
-                <Play size={15} fill="white" />
-                {app.isRunning ? "Running" : "Launch"}
+                {app.installing ? (
+                  <><Download size={15} /> Installing…</>
+                ) : !app.installed ? (
+                  <><Download size={15} /> Install</>
+                ) : (
+                  <><Play size={15} fill="white" /> {app.isRunning ? "Running" : "Launch"}</>
+                )}
               </button>
 
               {app.repoUrl && (

@@ -137,6 +137,213 @@ ipcMain.handle("system:stopMonitor", () => {
   }
 });
 
+// ─── Install directory management ─────────────────────────
+const settingsPath = path.join(dataDir, "settings.json");
+
+function readSettings() {
+  try {
+    if (fs.existsSync(settingsPath)) {
+      return JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
+    }
+  } catch { /* ignore */ }
+  return {};
+}
+
+function writeSettings(settings) {
+  fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+}
+
+function getInstallDir() {
+  const settings = readSettings();
+  return settings.installDir || path.join(app.getPath("appData"), "avosos", "apps");
+}
+
+ipcMain.handle("settings:getInstallDir", () => {
+  return getInstallDir();
+});
+
+ipcMain.handle("settings:setInstallDir", (_event, dirPath) => {
+  const settings = readSettings();
+  settings.installDir = dirPath;
+  writeSettings(settings);
+  return true;
+});
+
+// ─── Check if application is installed ────────────────────
+ipcMain.handle("app:checkInstalled", (_event, appPath) => {
+  if (!appPath) return false;
+  return fs.existsSync(appPath);
+});
+
+// ─── Install application (download release archive) ───────
+ipcMain.handle("app:install", async (_event, { appId, repoUrl, name }) => {
+  const https = require("https");
+  const { createWriteStream } = require("fs");
+  const { pipeline } = require("stream/promises");
+
+  const installDir = getInstallDir();
+  if (!fs.existsSync(installDir)) fs.mkdirSync(installDir, { recursive: true });
+
+  const appDir = path.join(installDir, appId);
+
+  // If already exists, return early
+  if (fs.existsSync(appDir)) {
+    return { installed: true, installPath: appDir, alreadyExisted: true };
+  }
+
+  // Try to download latest release archive from GitHub
+  if (repoUrl && repoUrl.includes("github.com")) {
+    const repoPath = repoUrl.replace(/^https?:\/\/github\.com\//, "").replace(/\/$/, "");
+    const apiUrl = `https://api.github.com/repos/${repoPath}/releases/latest`;
+
+    try {
+      // Fetch latest release info
+      const releaseInfo = await new Promise((resolve, reject) => {
+        const req = https.get(apiUrl, {
+          headers: { "User-Agent": "Avosos-Launcher/0.1.0", Accept: "application/vnd.github+json" },
+        }, (res) => {
+          if (res.statusCode === 302 || res.statusCode === 301) {
+            // follow redirect
+            https.get(res.headers.location, { headers: { "User-Agent": "Avosos-Launcher/0.1.0" } }, (res2) => {
+              let data = "";
+              res2.on("data", (chunk) => (data += chunk));
+              res2.on("end", () => resolve(JSON.parse(data)));
+            }).on("error", reject);
+            return;
+          }
+          let data = "";
+          res.on("data", (chunk) => (data += chunk));
+          res.on("end", () => {
+            if (res.statusCode === 200) resolve(JSON.parse(data));
+            else reject(new Error(`GitHub API returned ${res.statusCode}: ${data}`));
+          });
+        });
+        req.on("error", reject);
+      });
+
+      // Look for a suitable archive asset
+      const assets = releaseInfo.assets || [];
+      const platformKey = process.platform === "win32" ? "win" : process.platform === "darwin" ? "mac" : "linux";
+      const archiveAsset = assets.find(
+        (a) => (a.name.includes(platformKey) || a.name.includes("x64") || a.name.includes("amd64")) &&
+               (a.name.endsWith(".zip") || a.name.endsWith(".tar.gz"))
+      ) || assets.find(
+        (a) => a.name.endsWith(".zip") || a.name.endsWith(".tar.gz")
+      );
+
+      if (archiveAsset) {
+        const archivePath = path.join(installDir, archiveAsset.name);
+        // Download the asset
+        await downloadFile(archiveAsset.browser_download_url, archivePath);
+
+        // Extract
+        fs.mkdirSync(appDir, { recursive: true });
+        if (archiveAsset.name.endsWith(".zip")) {
+          await extractZip(archivePath, appDir);
+        }
+        // Clean up archive
+        try { fs.unlinkSync(archivePath); } catch { /* ignore */ }
+
+        return { installed: true, installPath: appDir, method: "release" };
+      }
+
+      // If there's a source zip for the tag/release
+      const tagName = releaseInfo.tag_name;
+      if (tagName) {
+        const zipUrl = `https://github.com/${repoPath}/archive/refs/tags/${tagName}.zip`;
+        const archivePath = path.join(installDir, `${appId}-${tagName}.zip`);
+
+        await downloadFile(zipUrl, archivePath);
+        fs.mkdirSync(appDir, { recursive: true });
+        await extractZip(archivePath, appDir);
+        try { fs.unlinkSync(archivePath); } catch { /* ignore */ }
+
+        return { installed: true, installPath: appDir, method: "source-release" };
+      }
+    } catch (err) {
+      // Fall back to cloning via git if release download fails
+      console.error("Release download failed, falling back to git clone:", err.message);
+    }
+
+    // Fallback: git clone
+    try {
+      const { execSync: ex } = require("child_process");
+      ex(`git clone "${repoUrl}" "${appDir}"`, { stdio: "pipe", timeout: 120000 });
+      return { installed: true, installPath: appDir, method: "git-clone" };
+    } catch (cloneErr) {
+      // Clean up partial clone
+      try { fs.rmSync(appDir, { recursive: true, force: true }); } catch { /* ignore */ }
+      throw new Error(`Failed to install ${name}: ${cloneErr.message}`);
+    }
+  }
+
+  throw new Error(`Cannot install ${name}: no repository URL configured`);
+});
+
+// ─── Helper: download a file following redirects ──────────
+function downloadFile(url, destPath) {
+  const https = require("https");
+  const http = require("http");
+  return new Promise((resolve, reject) => {
+    const doGet = (u) => {
+      const mod = u.startsWith("https") ? https : http;
+      mod.get(u, { headers: { "User-Agent": "Avosos-Launcher/0.1.0" } }, (res) => {
+        if (res.statusCode === 302 || res.statusCode === 301) {
+          return doGet(res.headers.location);
+        }
+        if (res.statusCode !== 200) {
+          return reject(new Error(`Download failed: HTTP ${res.statusCode}`));
+        }
+        const file = fs.createWriteStream(destPath);
+        res.pipe(file);
+        file.on("finish", () => { file.close(); resolve(); });
+        file.on("error", reject);
+      }).on("error", reject);
+    };
+    doGet(url);
+  });
+}
+
+// ─── Helper: extract zip file ─────────────────────────────
+function extractZip(zipPath, destDir) {
+  return new Promise((resolve, reject) => {
+    // Use PowerShell on Windows to extract
+    if (process.platform === "win32") {
+      const cmd = `powershell -NoProfile -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${destDir}' -Force"`;
+      exec(cmd, { timeout: 60000 }, (err) => {
+        if (err) reject(err);
+        else {
+          // If the zip extracted into a single subfolder, move contents up
+          flattenSingleSubdir(destDir);
+          resolve();
+        }
+      });
+    } else {
+      exec(`unzip -o "${zipPath}" -d "${destDir}"`, { timeout: 60000 }, (err) => {
+        if (err) reject(err);
+        else {
+          flattenSingleSubdir(destDir);
+          resolve();
+        }
+      });
+    }
+  });
+}
+
+function flattenSingleSubdir(dir) {
+  const entries = fs.readdirSync(dir);
+  if (entries.length === 1) {
+    const single = path.join(dir, entries[0]);
+    if (fs.statSync(single).isDirectory()) {
+      const subEntries = fs.readdirSync(single);
+      for (const e of subEntries) {
+        fs.renameSync(path.join(single, e), path.join(dir, e));
+      }
+      fs.rmdirSync(single);
+    }
+  }
+}
+
 // ─── Launch external applications ─────────────────────────
 ipcMain.handle("app:launch", async (_event, config) => {
   const { executablePath, args = [], cwd } = config;

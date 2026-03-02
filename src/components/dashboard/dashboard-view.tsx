@@ -3,6 +3,7 @@
 import React from "react";
 import {
   Play,
+  Download,
   Clock,
   TrendingUp,
   ArrowRight,
@@ -28,6 +29,7 @@ export default function DashboardView() {
     systemStats,
     selectApp,
     launchApp,
+    installApp,
     setView,
   } = useLauncherStore();
 
@@ -157,7 +159,7 @@ export default function DashboardView() {
                 <AppQuickCard
                   key={app.id}
                   app={app}
-                  onLaunch={() => launchApp(app.id)}
+                  onLaunch={() => app.installed ? launchApp(app.id) : installApp(app.id)}
                   onDetails={() => selectApp(app.id)}
                 />
               ))}
@@ -544,14 +546,25 @@ function AppQuickCard({
 
       <button
         className="btn-primary"
-        style={{ width: "100%", justifyContent: "center" }}
+        style={{
+          width: "100%",
+          justifyContent: "center",
+          opacity: app.installing ? 0.7 : 1,
+          cursor: app.installing ? "wait" : "pointer",
+        }}
+        disabled={app.installing}
         onClick={(e) => {
           e.stopPropagation();
           onLaunch();
         }}
       >
-        <Play size={13} fill="white" />
-        {app.isRunning ? "Running" : "Launch"}
+        {app.installing ? (
+          <><Download size={13} /> Installing…</>
+        ) : !app.installed ? (
+          <><Download size={13} /> Install</>
+        ) : (
+          <><Play size={13} fill="white" /> {app.isRunning ? "Running" : "Launch"}</>
+        )}
       </button>
     </div>
   );

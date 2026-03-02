@@ -28,6 +28,7 @@ export interface AppDefinition {
   compatibility?: CompatibilityEntry[];
   resourceUsage?: ResourceUsage;
   isRunning?: boolean;
+  installing?: boolean;
   pinnedVersion?: string;
   updateAvailable?: string;
   autoUpdate?: boolean;
@@ -207,6 +208,14 @@ declare global {
         args?: string[];
         cwd?: string;
       }) => Promise<{ pid: number; launched: boolean }>;
+      checkInstalled: (appPath: string) => Promise<boolean>;
+      installApp: (config: {
+        appId: string;
+        repoUrl?: string;
+        name: string;
+      }) => Promise<{ installed: boolean; installPath: string; method?: string; alreadyExisted?: boolean }>;
+      getInstallDir: () => Promise<string>;
+      setInstallDir: (dirPath: string) => Promise<boolean>;
       getProjectMeta: (sourcePath: string) => Promise<{
         version: string | null;
         description: string | null;

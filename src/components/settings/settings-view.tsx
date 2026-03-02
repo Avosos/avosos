@@ -225,6 +225,17 @@ function GeneralSettings() {
   const [startOnBoot, setStartOnBoot] = useState(false);
   const [minimizeToTray, setMinimizeToTray] = useState(true);
   const [confirmLaunch, setConfirmLaunch] = useState(false);
+  const { installDir, setInstallDir } = useLauncherStore();
+
+  const handleChangeInstallDir = async () => {
+    const selected = await window.electronAPI?.openFolderDialog({
+      title: "Select application install directory",
+      defaultPath: installDir || undefined,
+    });
+    if (selected) {
+      setInstallDir(selected);
+    }
+  };
 
   return (
     <div className="animate-fadeIn">
@@ -250,8 +261,15 @@ function GeneralSettings() {
       </SettingGroup>
 
       <SettingGroup title="Default Paths">
-        <SettingRow label="Install directory" description="Where new applications are installed">
-          <button className="btn-secondary" style={{ padding: "5px 12px", fontSize: 12 }}>
+        <SettingRow
+          label="Install directory"
+          description={installDir || "Not set – using default location"}
+        >
+          <button
+            className="btn-secondary"
+            style={{ padding: "5px 12px", fontSize: 12 }}
+            onClick={handleChangeInstallDir}
+          >
             <FolderOpen size={12} />
             Change
           </button>
