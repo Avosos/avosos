@@ -922,6 +922,117 @@ if (process.platform === "win32") {
   app.setAppUserModelId("com.avosos.launcher");
 }
 
+// ─── Disk usage ───────────────────────────────────────────
+ipcMain.handle("system:disk", () => {
+  return new Promise((resolve) => {
+    if (process.platform === "win32") {
+      exec(
+        "wmic logicaldisk where DeviceID='C:' get Size,FreeSpace /format:list",
+        (err, stdout) => {
+          if (err) return resolve({ total: 0, free: 0 });
+          const sizeMatch = stdout.match(/Size=(\d+)/);
+          const freeMatch = stdout.match(/FreeSpace=(\d+)/);
+          resolve({
+            total: sizeMatch ? parseInt(sizeMatch[1]) : 0,
+            free: freeMatch ? parseInt(freeMatch[1]) : 0,
+          });
+        }
+      );
+    } else {
+      exec("df -k / | tail -1", (err, stdout) => {
+        if (err) return resolve({ total: 0, free: 0 });
+        const parts = stdout.trim().split(/\s+/);
+        resolve({
+          total: parseInt(parts[1] || "0") * 1024,
+          free: parseInt(parts[3] || "0") * 1024,
+        });
+      });
+    }
+  });
+});
+
+// ─── Environment variables ────────────────────────────────
+ipcMain.handle("system:envVars", () => {
+  return Object.entries(process.env)
+    .filter(([, v]) => v !== undefined)
+    .map(([key, value]) => ({ key, value }));
+});
+
+// ─── Get launcher data directory path ─────────────────────
+ipcMain.handle("system:dataDir", () => {
+  return dataDir;
+});
+
+// ─── Storage info (real sizes) ────────────────────────────
+ipcMain.handle("system:storageInfo", () => {
+  let cacheSize = 0;
+  let dataSize = 0;
+
+  // Sum cache dirs
+  const cacheDirs = [
+    path.join(app.getPath("userData"), "Cache"),
+    path.join(app.getPath("userData"), "Code Cache"),
+    path.join(app.getPath("userData"), "GPUCache"),
+  ];
+  for (const dir of cacheDirs) {
+    cacheSize += getDirSize(dir);
+  }
+
+  // Sum data dir
+  dataSize = getDirSize(dataDir);
+
+  return { cacheSize, dataSize };
+});
+
+function getDirSize(dirPath) {
+  let total = 0;
+  if (!fs.existsSync(dirPath)) return 0;
+  try {
+    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+    for (const entry of entries) {
+      const full = path.join(dirPath, entry.name);
+      try {
+        if (entry.isDirectory()) {
+          total += getDirSize(full);
+        } else {
+          total += fs.statSync(full).size;
+        }
+      } catch { /* skip inaccessible */ }
+    }
+  } catch { /* skip */ }
+  return total;
+}
+
+// ─── Kill a running process by PID ────────────────────────
+ipcMain.handle("app:kill", (_event, pid) => {
+  try {
+    process.kill(pid);
+    return { killed: true };
+  } catch (err) {
+    // On Windows, try taskkill for process trees
+    if (process.platform === "win32") {
+      try {
+        require("child_process").execSync(`taskkill /PID ${pid} /T /F`, { stdio: "pipe" });
+        return { killed: true };
+      } catch { /* ignore */ }
+    }
+    return { killed: false, error: err.message };
+  }
+});
+
+// ─── Reset launcher (clear all data) ─────────────────────
+ipcMain.handle("admin:resetLauncher", () => {
+  try {
+    const files = fs.readdirSync(dataDir).filter((f) => f.endsWith(".json"));
+    for (const f of files) {
+      try { fs.unlinkSync(path.join(dataDir, f)); } catch { /* skip */ }
+    }
+    return { reset: true };
+  } catch (err) {
+    return { reset: false, error: err.message };
+  }
+});
+
 app.whenReady().then(createWindow);
 
 app.on("window-all-closed", () => {

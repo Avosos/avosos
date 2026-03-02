@@ -103,8 +103,9 @@ interface LauncherState {
   /* Applications */
   apps: AppDefinition[];
   runningApps: Set<string>;
+  runningPids: Map<string, number>;
   launchApp: (id: string) => Promise<void>;
-  stopApp: (id: string) => void;
+  stopApp: (id: string) => Promise<void>;
   refreshAppMeta: (id?: string) => Promise<void>;
   bumpAppVersion: (id: string, bumpType: "major" | "minor" | "patch" | "auto") => Promise<string | null>;
   installApp: (id: string) => Promise<boolean>;
@@ -121,6 +122,16 @@ interface LauncherState {
   setTheme: (theme: "dark" | "light") => void;
   setAccentColor: (color: string) => void;
 
+  /* General settings (persisted) */
+  startOnBoot: boolean;
+  minimizeToTray: boolean;
+  confirmLaunch: boolean;
+  projectsDir: string;
+  setStartOnBoot: (v: boolean) => void;
+  setMinimizeToTray: (v: boolean) => void;
+  setConfirmLaunch: (v: boolean) => void;
+  setProjectsDir: (dir: string) => Promise<void>;
+
   /* Projects */
   projects: Project[];
   addProject: (project: Omit<Project, "id" | "createdAt" | "updatedAt">) => void;
@@ -132,6 +143,7 @@ interface LauncherState {
   activeProfileId: string | null;
   setActiveProfile: (id: string | null) => void;
   addProfile: (profile: Omit<EnvironmentProfile, "id" | "createdAt" | "updatedAt">) => void;
+  removeProfile: (id: string) => void;
 
   /* System */
   systemInfo: SystemInfo | null;
@@ -160,6 +172,7 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
   /* ── Applications ─────────────────────────────────────── */
   apps: APP_REGISTRY,
   runningApps: new Set(),
+  runningPids: new Map(),
 
   installApp: async (id) => {
     const app = get().apps.find((a) => a.id === id);

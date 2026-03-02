@@ -58,6 +58,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
   openFolderDialog: (options) => ipcRenderer.invoke("dialog:openFolder", options),
   openFileDialog: (options) => ipcRenderer.invoke("dialog:openFile", options),
 
+  // System extended
+  getDiskInfo: () => ipcRenderer.invoke("system:disk"),
+  getEnvVars: () => ipcRenderer.invoke("system:envVars"),
+  getStorageInfo: () => ipcRenderer.invoke("system:storageInfo"),
+  getDataDir: () => ipcRenderer.invoke("system:dataDir"),
+
+  // Process management
+  killProcess: (pid) => ipcRenderer.invoke("app:kill", pid),
+
   // Admin
   getRuntimes: () => ipcRenderer.invoke("admin:getRuntimes"),
   getAppGitStatus: (sourcePath) => ipcRenderer.invoke("admin:getAppGitStatus", sourcePath),
@@ -66,4 +75,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
   importConfig: (json) => ipcRenderer.invoke("admin:importConfig", json),
   getLauncherLogs: () => ipcRenderer.invoke("admin:getLauncherLogs"),
   scanDirectory: (dirPath) => ipcRenderer.invoke("admin:scanDirectory", dirPath),
+  resetLauncher: () => ipcRenderer.invoke("admin:resetLauncher"),
 });

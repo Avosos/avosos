@@ -256,6 +256,12 @@ declare global {
       importConfig: (json: string) => Promise<boolean>;
       getLauncherLogs: () => Promise<import("@/types").LauncherLogEntry[]>;
       scanDirectory: (dirPath: string) => Promise<{ name: string; path: string; type: "node" | "rust" | "unknown" }[]>;
+      resetLauncher: () => Promise<{ reset: boolean; error?: string }>;
+      getDiskInfo: () => Promise<{ total: number; free: number }>;
+      getEnvVars: () => Promise<{ key: string; value: string }[]>;
+      getStorageInfo: () => Promise<{ cacheSize: number; dataSize: number }>;
+      getDataDir: () => Promise<string>;
+      killProcess: (pid: number) => Promise<{ killed: boolean; error?: string }>;
     };
   }
 }
