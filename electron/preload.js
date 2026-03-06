@@ -83,4 +83,32 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getLauncherLogs: () => ipcRenderer.invoke("admin:getLauncherLogs"),
   scanDirectory: (dirPath) => ipcRenderer.invoke("admin:scanDirectory", dirPath),
   resetLauncher: () => ipcRenderer.invoke("admin:resetLauncher"),
+
+  // Uninstall progress events
+  onUninstallProgress: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on("uninstall:progress", handler);
+    return () => ipcRenderer.removeListener("uninstall:progress", handler);
+  },
+
+  // License key management
+  validateLicenseKey: (appId, key) => ipcRenderer.invoke("license:validate", appId, key),
+  getLicenseStatus: (appId) => ipcRenderer.invoke("license:status", appId),
+
+  // Version deployment (admin)
+  getAvailableVersions: (appId) => ipcRenderer.invoke("version:available", appId),
+  deployVersion: (appId, version) => ipcRenderer.invoke("version:deploy", appId, version),
+  rollbackVersion: (appId) => ipcRenderer.invoke("version:rollback", appId),
+
+  // Maintenance mode (admin)
+  setMaintenanceMode: (appId, enabled, message) => ipcRenderer.invoke("admin:setMaintenance", appId, enabled, message),
+
+  // User management (admin)
+  getUsers: () => ipcRenderer.invoke("admin:getUsers"),
+  addUser: (username, email, role) => ipcRenderer.invoke("admin:addUser", username, email, role),
+  removeUser: (userId) => ipcRenderer.invoke("admin:removeUser", userId),
+  updateUserRole: (userId, role) => ipcRenderer.invoke("admin:updateUserRole", userId, role),
+
+  // Updates
+  checkForUpdates: () => ipcRenderer.invoke("app:checkForUpdates"),
 });
