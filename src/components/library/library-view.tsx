@@ -10,6 +10,9 @@ import {
   Download,
   ExternalLink,
   ChevronDown,
+  Square,
+  Loader,
+  Trash2,
 } from "lucide-react";
 import { useLauncherStore } from "@/stores/launcher-store";
 import { CATEGORY_META } from "@/lib/app-registry";
@@ -20,7 +23,7 @@ type ViewMode = "grid" | "list";
 type FilterCategory = "all" | AppCategory;
 
 export default function LibraryView() {
-  const { apps, selectApp, launchApp, installApp, searchQuery, setSearchQuery } =
+  const { apps, selectApp, launchApp, installApp, stopApp, uninstallApp, searchQuery, setSearchQuery } =
     useLauncherStore();
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [filterCategory, setFilterCategory] = useState<FilterCategory>("all");
@@ -254,6 +257,8 @@ export default function LibraryView() {
                 key={app.id}
                 app={app}
                 onLaunch={() => app.installed ? launchApp(app.id) : installApp(app.id)}
+                onStop={() => stopApp(app.id)}
+                onUninstall={() => uninstallApp(app.id)}
                 onDetails={() => selectApp(app.id)}
               />
             ))}
@@ -265,6 +270,8 @@ export default function LibraryView() {
                 key={app.id}
                 app={app}
                 onLaunch={() => app.installed ? launchApp(app.id) : installApp(app.id)}
+                onStop={() => stopApp(app.id)}
+                onUninstall={() => uninstallApp(app.id)}
                 onDetails={() => selectApp(app.id)}
               />
             ))}
@@ -279,10 +286,14 @@ export default function LibraryView() {
 function GridCard({
   app,
   onLaunch,
+  onStop,
+  onUninstall,
   onDetails,
 }: {
   app: AppDefinition;
   onLaunch: () => void;
+  onStop: () => void;
+  onUninstall: () => void;
   onDetails: () => void;
 }) {
   const catMeta = CATEGORY_META[app.category];
@@ -311,7 +322,28 @@ function GridCard({
         }}
       >
         <AppIcon icon={app.icon} size={48} />
-        {app.isRunning && (
+        {app.isLaunching && (
+          <div
+            style={{
+              position: "absolute",
+              top: 10,
+              right: 10,
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "2px 8px",
+              borderRadius: 12,
+              background: "var(--accent-muted)",
+              fontSize: 10,
+              fontWeight: 600,
+              color: "var(--accent)",
+            }}
+          >
+            <Loader size={10} style={{ animation: "spin 1s linear infinite" }} />
+            Starting…
+          </div>
+        )}
+        {app.isRunning && !app.isLaunching && (
           <div
             style={{
               position: "absolute",
@@ -337,6 +369,27 @@ function GridCard({
               }}
             />
             Running
+          </div>
+        )}
+        {app.uninstalling && (
+          <div
+            style={{
+              position: "absolute",
+              top: 10,
+              right: 10,
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "2px 8px",
+              borderRadius: 12,
+              background: "var(--error-muted, rgba(239,68,68,0.12))",
+              fontSize: 10,
+              fontWeight: 600,
+              color: "var(--error, #ef4444)",
+            }}
+          >
+            <Loader size={10} style={{ animation: "spin 1s linear infinite" }} />
+            Removing…
           </div>
         )}
       </div>
@@ -416,49 +469,102 @@ function GridCard({
           {app.description}
         </p>
 
-        {app.installing && app.installProgress && (
-          <div
-            style={{
-              fontSize: 11,
-              color: "var(--accent)",
-              marginBottom: 8,
-              padding: "6px 10px",
-              borderRadius: 6,
-              background: "var(--accent-muted)",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-            title={app.installProgress}
-          >
-            {app.installProgress}
+        {app.installing && (
+          <div style={{ marginBottom: 8 }}>
+            <div
+              style={{
+                fontSize: 11,
+                color: "var(--accent)",
+                marginBottom: 4,
+                padding: "4px 0",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+              title={app.installProgress ?? "Installing…"}
+            >
+              {app.installProgress ?? "Installing…"}
+            </div>
+            <div className="progress-bar" style={{ height: 4 }}>
+              <div
+                className="progress-bar-fill"
+                style={{
+                  width: `${app.installProgressPercent ?? 0}%`,
+                  background: "var(--accent)",
+                  transition: "width 0.3s ease",
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {app.uninstalling && (
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: 11, color: "var(--error, #ef4444)", marginBottom: 4 }}>
+              {app.uninstallProgress ?? "Removing…"}
+            </div>
           </div>
         )}
 
         <div style={{ display: "flex", gap: 8 }}>
-          <button
-            className="btn-primary"
-            style={{
-              flex: 1,
-              justifyContent: "center",
-              padding: "8px 14px",
-              opacity: app.installing ? 0.7 : 1,
-              cursor: app.installing ? "wait" : "pointer",
-            }}
-            disabled={app.installing}
-            onClick={(e) => {
-              e.stopPropagation();
-              onLaunch();
-            }}
-          >
-            {app.installing ? (
-              <><Download size={13} /> Installing…</>
-            ) : !app.installed ? (
-              <><Download size={13} /> Install</>
-            ) : (
-              <><Play size={13} fill="white" /> Launch</>
-            )}
-          </button>
+          {app.isRunning ? (
+            <button
+              className="btn-primary"
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                padding: "8px 14px",
+                background: "var(--error, #ef4444)",
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onStop();
+              }}
+            >
+              <Square size={13} fill="white" /> Stop
+            </button>
+          ) : (
+            <button
+              className="btn-primary"
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                padding: "8px 14px",
+                opacity: app.installing || app.isLaunching || app.uninstalling ? 0.7 : 1,
+                cursor: app.installing || app.isLaunching || app.uninstalling ? "wait" : "pointer",
+              }}
+              disabled={app.installing || app.isLaunching || app.uninstalling}
+              onClick={(e) => {
+                e.stopPropagation();
+                onLaunch();
+              }}
+            >
+              {app.installing ? (
+                <><Download size={13} /> Installing…</>
+              ) : app.isLaunching ? (
+                <><Loader size={13} style={{ animation: "spin 1s linear infinite" }} /> Starting…</>
+              ) : app.uninstalling ? (
+                <><Loader size={13} style={{ animation: "spin 1s linear infinite" }} /> Removing…</>
+              ) : !app.installed ? (
+                <><Download size={13} /> Install</>
+              ) : (
+                <><Play size={13} fill="white" /> Launch</>
+              )}
+            </button>
+          )}
+          {app.installed && !app.isRunning && !app.installing && !app.uninstalling && (
+            <button
+              className="btn-secondary"
+              style={{ padding: "8px 10px", color: "var(--error, #ef4444)" }}
+              title="Uninstall"
+              onClick={(e) => {
+                e.stopPropagation();
+                onUninstall();
+              }}
+            >
+              <Trash2 size={13} />
+            </button>
+          )}
           <button
             className="btn-secondary"
             style={{ padding: "8px 14px" }}
@@ -479,10 +585,14 @@ function GridCard({
 function ListRow({
   app,
   onLaunch,
+  onStop,
+  onUninstall,
   onDetails,
 }: {
   app: AppDefinition;
   onLaunch: () => void;
+  onStop: () => void;
+  onUninstall: () => void;
   onDetails: () => void;
 }) {
   const catMeta = CATEGORY_META[app.category];
@@ -524,6 +634,28 @@ function ListRow({
               Running
             </span>
           )}
+          {app.isLaunching && !app.isRunning && (
+            <span
+              className="badge"
+              style={{
+                background: "var(--accent-muted)",
+                color: "var(--accent)",
+              }}
+            >
+              <Loader size={10} style={{ animation: "spin 1s linear infinite" }} /> Starting…
+            </span>
+          )}
+          {app.uninstalling && (
+            <span
+              className="badge"
+              style={{
+                background: "var(--error-muted, rgba(239,68,68,0.12))",
+                color: "var(--error, #ef4444)",
+              }}
+            >
+              Removing…
+            </span>
+          )}
         </div>
         <div
           style={{
@@ -546,44 +678,73 @@ function ListRow({
         v{app.version}
       </div>
 
-      {app.installing && app.installProgress && (
-        <div
-          style={{
-            fontSize: 10,
-            color: "var(--accent)",
-            maxWidth: 200,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-          title={app.installProgress}
-        >
-          {app.installProgress}
+      {app.installing && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 160 }}>
+          <div style={{ flex: 1 }}>
+            <div className="progress-bar" style={{ height: 4 }}>
+              <div className="progress-bar-fill" style={{ width: `${app.installProgressPercent ?? 0}%`, background: "var(--accent)", transition: "width 0.3s ease" }} />
+            </div>
+          </div>
+          <span style={{ fontSize: 10, color: "var(--accent)", whiteSpace: "nowrap" }}>
+            {app.installProgressPercent ?? 0}%
+          </span>
         </div>
       )}
 
+      {!app.installing && app.installProgress && !app.uninstalling && null}
+
       <div style={{ display: "flex", gap: 6 }}>
-        <button
-          className="btn-primary"
-          style={{
-            padding: "6px 16px",
-            opacity: app.installing ? 0.7 : 1,
-            cursor: app.installing ? "wait" : "pointer",
-          }}
-          disabled={app.installing}
-          onClick={(e) => {
-            e.stopPropagation();
-            onLaunch();
-          }}
-        >
-          {app.installing ? (
-            <><Download size={12} /> Installing…</>
-          ) : !app.installed ? (
-            <><Download size={12} /> Install</>
-          ) : (
-            <><Play size={12} fill="white" /> Launch</>
-          )}
-        </button>
+        {app.isRunning ? (
+          <button
+            className="btn-primary"
+            style={{ padding: "6px 16px", background: "var(--error, #ef4444)" }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onStop();
+            }}
+          >
+            <Square size={12} fill="white" /> Stop
+          </button>
+        ) : (
+          <button
+            className="btn-primary"
+            style={{
+              padding: "6px 16px",
+              opacity: app.installing || app.isLaunching || app.uninstalling ? 0.7 : 1,
+              cursor: app.installing || app.isLaunching || app.uninstalling ? "wait" : "pointer",
+            }}
+            disabled={app.installing || app.isLaunching || app.uninstalling}
+            onClick={(e) => {
+              e.stopPropagation();
+              onLaunch();
+            }}
+          >
+            {app.installing ? (
+              <><Download size={12} /> Installing…</>
+            ) : app.isLaunching ? (
+              <><Loader size={12} style={{ animation: "spin 1s linear infinite" }} /> Starting…</>
+            ) : app.uninstalling ? (
+              <><Loader size={12} style={{ animation: "spin 1s linear infinite" }} /> Removing…</>
+            ) : !app.installed ? (
+              <><Download size={12} /> Install</>
+            ) : (
+              <><Play size={12} fill="white" /> Launch</>
+            )}
+          </button>
+        )}
+        {app.installed && !app.isRunning && !app.installing && !app.uninstalling && (
+          <button
+            className="btn-secondary"
+            style={{ padding: "6px 10px", color: "var(--error, #ef4444)" }}
+            title="Uninstall"
+            onClick={(e) => {
+              e.stopPropagation();
+              onUninstall();
+            }}
+          >
+            <Trash2 size={12} />
+          </button>
+        )}
       </div>
     </div>
   );

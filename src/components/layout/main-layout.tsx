@@ -41,8 +41,8 @@ export default function MainLayout() {
         return <AppDetailView />;
       case "projects":
         return <ProjectsView />;
-      case "profiles":
-        return <ProfilesView />;
+      case "store":
+        return <StoreView />;
       case "settings":
         return <SettingsView />;
       case "admin":

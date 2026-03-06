@@ -13,6 +13,8 @@ import {
   Cpu,
   MemoryStick,
   MonitorSpeaker,
+  Square,
+  Loader,
 } from "lucide-react";
 import { useLauncherStore } from "@/stores/launcher-store";
 import { CATEGORY_META } from "@/lib/app-registry";
@@ -30,6 +32,7 @@ export default function DashboardView() {
     selectApp,
     launchApp,
     installApp,
+    stopApp,
     setView,
   } = useLauncherStore();
 
@@ -178,6 +181,7 @@ export default function DashboardView() {
                   key={app.id}
                   app={app}
                   onLaunch={() => app.installed ? launchApp(app.id) : installApp(app.id)}
+                  onStop={() => stopApp(app.id)}
                   onDetails={() => selectApp(app.id)}
                 />
               ))}
@@ -474,10 +478,12 @@ function DashboardSection({
 function AppQuickCard({
   app,
   onLaunch,
+  onStop,
   onDetails,
 }: {
   app: import("@/types").AppDefinition;
   onLaunch: () => void;
+  onStop: () => void;
   onDetails: () => void;
 }) {
   const catMeta = CATEGORY_META[app.category];
@@ -562,28 +568,57 @@ function AppQuickCard({
         {app.description}
       </p>
 
-      <button
-        className="btn-primary"
-        style={{
-          width: "100%",
-          justifyContent: "center",
-          opacity: app.installing ? 0.7 : 1,
-          cursor: app.installing ? "wait" : "pointer",
-        }}
-        disabled={app.installing}
-        onClick={(e) => {
-          e.stopPropagation();
-          onLaunch();
-        }}
-      >
-        {app.installing ? (
-          <><Download size={13} /> Installing…</>
-        ) : !app.installed ? (
-          <><Download size={13} /> Install</>
-        ) : (
-          <><Play size={13} fill="white" /> {app.isRunning ? "Running" : "Launch"}</>
-        )}
-      </button>
+      {app.installing && (
+        <div style={{ width: "100%", marginBottom: -4 }}>
+          <div className="progress-bar" style={{ height: 4, marginBottom: 4 }}>
+            <div className="progress-bar-fill" style={{ width: `${app.installProgressPercent ?? 0}%`, background: "var(--accent)", transition: "width 0.3s ease" }} />
+          </div>
+        </div>
+      )}
+
+      {app.isRunning ? (
+        <button
+          className="btn-primary"
+          style={{
+            width: "100%",
+            justifyContent: "center",
+            background: "var(--error, #ef4444)",
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onStop();
+          }}
+        >
+          <Square size={13} fill="white" /> Stop
+        </button>
+      ) : (
+        <button
+          className="btn-primary"
+          style={{
+            width: "100%",
+            justifyContent: "center",
+            opacity: app.installing || app.isLaunching || app.uninstalling ? 0.7 : 1,
+            cursor: app.installing || app.isLaunching || app.uninstalling ? "wait" : "pointer",
+          }}
+          disabled={app.installing || app.isLaunching || app.uninstalling}
+          onClick={(e) => {
+            e.stopPropagation();
+            onLaunch();
+          }}
+        >
+          {app.installing ? (
+            <><Download size={13} /> Installing…</>
+          ) : app.isLaunching ? (
+            <><Loader size={13} style={{ animation: "spin 1s linear infinite" }} /> Starting…</>
+          ) : app.uninstalling ? (
+            <><Loader size={13} style={{ animation: "spin 1s linear infinite" }} /> Removing…</>
+          ) : !app.installed ? (
+            <><Download size={13} /> Install</>
+          ) : (
+            <><Play size={13} fill="white" /> Launch</>
+          )}
+        </button>
+      )}
     </div>
   );
 }

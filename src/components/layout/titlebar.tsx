@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Minus, Square, X, Copy } from "lucide-react";
+import NotificationPanel from "./notification-panel";
 
 export default function Titlebar() {
   const [isMaximized, setIsMaximized] = useState(false);
@@ -61,8 +62,11 @@ export default function Titlebar() {
         </span>
       </div>
 
-      {/* Window controls */}
-      <div className="titlebar-no-drag" style={{ display: "flex", height: "100%" }}>
+      {/* Notification bell + Window controls */}
+      <div className="titlebar-no-drag" style={{ display: "flex", height: "100%", alignItems: "center" }}>
+        <div style={{ padding: "0 8px", display: "flex", alignItems: "center" }}>
+          <NotificationPanel />
+        </div>
         <WindowButton onClick={() => window.electronAPI?.minimize()}>
           <Minus size={14} />
         </WindowButton>
