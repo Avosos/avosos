@@ -378,9 +378,9 @@ export default function DashboardView() {
               <button
                 className="btn-ghost"
                 style={{ marginTop: 8, fontSize: 12, padding: "6px 0" }}
-                onClick={() => setView("profiles")}
+                onClick={() => setView("store")}
               >
-                Manage Profiles <ArrowRight size={12} />
+                Manage Store <ArrowRight size={12} />
               </button>
             </div>
           )}

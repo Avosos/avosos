@@ -384,31 +384,125 @@ function AppearanceSettings() {
 }
 
 function NotificationSettings() {
+  const {
+    notifyOnInstall, setNotifyOnInstall,
+    notifyOnUpdate, setNotifyOnUpdate,
+    notifyOnLaunch, setNotifyOnLaunch,
+    notifications, clearAllNotifications,
+  } = useLauncherStore();
+
   return (
     <div className="animate-fadeIn">
       <SettingGroup title="Notifications" description="Control what notifications you receive">
-        <ComingSoonBanner feature="Notifications" description="System notifications for updates, app events, and launcher activity will be available in a future release." />
+        <SettingRow
+          label="Install / Uninstall progress"
+          description="Show Epic Games-style progress bar when installing or removing apps"
+        >
+          <Toggle enabled={notifyOnInstall} onChange={() => setNotifyOnInstall(!notifyOnInstall)} />
+        </SettingRow>
+        <SettingRow
+          label="Update alerts"
+          description="Notify when new app versions are available"
+        >
+          <Toggle enabled={notifyOnUpdate} onChange={() => setNotifyOnUpdate(!notifyOnUpdate)} />
+        </SettingRow>
+        <SettingRow
+          label="Launch events"
+          description="Show notification when an app starts or stops"
+        >
+          <Toggle enabled={notifyOnLaunch} onChange={() => setNotifyOnLaunch(!notifyOnLaunch)} />
+        </SettingRow>
+      </SettingGroup>
+
+      <SettingGroup title="Notification History">
+        <SettingRow
+          label={`${notifications.length} notification${notifications.length !== 1 ? "s" : ""}`}
+          description="Total notifications in the current session"
+        >
+          <button
+            className="btn-secondary"
+            style={{ padding: "5px 12px", fontSize: 12 }}
+            onClick={clearAllNotifications}
+            disabled={notifications.length === 0}
+          >
+            Clear All
+          </button>
+        </SettingRow>
       </SettingGroup>
     </div>
   );
 }
 
 function UpdateSettings() {
+  const {
+    autoCheckUpdates, setAutoCheckUpdates,
+    autoInstallUpdates, setAutoInstallUpdates,
+    apps,
+  } = useLauncherStore();
+  const [checking, setChecking] = useState(false);
+  const [checkResult, setCheckResult] = useState<string | null>(null);
+
+  const outdatedApps = apps.filter((a) => a.installed && a.updateAvailable);
+
+  const handleCheckNow = async () => {
+    setChecking(true);
+    setCheckResult(null);
+    try {
+      await window.electronAPI?.checkForUpdates?.();
+      setCheckResult(
+        outdatedApps.length > 0
+          ? `${outdatedApps.length} update${outdatedApps.length > 1 ? "s" : ""} available.`
+          : "All applications are up to date."
+      );
+    } catch {
+      setCheckResult("Failed to check for updates.");
+    } finally {
+      setChecking(false);
+    }
+  };
+
   return (
     <div className="animate-fadeIn">
       <SettingGroup title="Updates" description="How updates are handled">
-        <ComingSoonBanner feature="Auto-Updates" description="Automatic update checking, downloading, and installation will be available in a future release." />
+        <SettingRow
+          label="Automatically check for updates"
+          description="Periodically check if new versions are available"
+        >
+          <Toggle enabled={autoCheckUpdates} onChange={() => setAutoCheckUpdates(!autoCheckUpdates)} />
+        </SettingRow>
+        <SettingRow
+          label="Auto-install updates"
+          description="Automatically download and install available updates"
+        >
+          <Toggle enabled={autoInstallUpdates} onChange={() => setAutoInstallUpdates(!autoInstallUpdates)} />
+        </SettingRow>
+        <SettingRow
+          label="Check for updates"
+          description={checkResult ?? (outdatedApps.length > 0 ? `${outdatedApps.length} update(s) available` : "Last checked: unknown")}
+        >
+          <button
+            className="btn-secondary"
+            style={{ padding: "5px 12px", fontSize: 12 }}
+            onClick={handleCheckNow}
+            disabled={checking}
+          >
+            {checking ? "Checking…" : "Check Now"}
+          </button>
+        </SettingRow>
       </SettingGroup>
     </div>
   );
 }
 
 function StorageSettings() {
+  const { apps } = useLauncherStore();
   const [storageInfo, setStorageInfo] = useState<{ cacheSize: number; dataSize: number } | null>(null);
+  const [diskInfo, setDiskInfo] = useState<{ total: number; free: number } | null>(null);
   const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
     window.electronAPI?.getStorageInfo().then(setStorageInfo).catch(() => {});
+    window.electronAPI?.getDiskInfo?.().then((d) => d && setDiskInfo(d)).catch(() => {});
   }, []);
 
   const handleClearCache = async () => {
@@ -428,9 +522,40 @@ function StorageSettings() {
     return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
   };
 
+  const installedApps = apps.filter((a) => a.installed);
+  const diskUsedPct = diskInfo ? Math.round(((diskInfo.total - diskInfo.free) / diskInfo.total) * 100) : 0;
+
   return (
     <div className="animate-fadeIn">
-      <SettingGroup title="Storage" description="Manage disk space and cache">
+      {/* Disk overview */}
+      {diskInfo && (
+        <SettingGroup title="Disk Overview" description="System drive usage">
+          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12 }}>
+            <div style={{ flex: 1 }}>
+              <div className="progress-bar" style={{ height: 8, borderRadius: 4 }}>
+                <div
+                  className="progress-bar-fill"
+                  style={{
+                    width: `${diskUsedPct}%`,
+                    background: diskUsedPct > 90 ? "var(--error, #ef4444)" : diskUsedPct > 70 ? "var(--warning)" : "var(--accent)",
+                    borderRadius: 4,
+                  }}
+                />
+              </div>
+            </div>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", minWidth: 50 }}>
+              {diskUsedPct}%
+            </span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text-muted)" }}>
+            <span>Used: {formatSize(diskInfo.total - diskInfo.free)}</span>
+            <span>Free: {formatSize(diskInfo.free)}</span>
+            <span>Total: {formatSize(diskInfo.total)}</span>
+          </div>
+        </SettingGroup>
+      )}
+
+      <SettingGroup title="Launcher Storage" description="Manage disk space and cache">
         <SettingRow label="Cache size" description="Temporary files and download cache">
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)" }}>
@@ -452,6 +577,23 @@ function StorageSettings() {
           </span>
         </SettingRow>
       </SettingGroup>
+
+      {/* Per-app storage */}
+      {installedApps.length > 0 && (
+        <SettingGroup title="Installed Applications" description="Storage per installed app">
+          {installedApps.map((app) => (
+            <SettingRow
+              key={app.id}
+              label={app.name}
+              description={`v${app.version} · ${app.installPath ?? "default location"}`}
+            >
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)" }}>
+                {app.size ?? "—"}
+              </span>
+            </SettingRow>
+          ))}
+        </SettingGroup>
+      )}
     </div>
   );
 }

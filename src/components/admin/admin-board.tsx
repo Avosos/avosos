@@ -31,6 +31,12 @@ import {
   Server,
   Play,
   Square,
+  Users,
+  UserPlus,
+  UserMinus,
+  RotateCcw,
+  Power,
+  MessageSquare,
 } from "lucide-react";
 import { useLauncherStore } from "@/stores/launcher-store";
 import AppIcon from "@/components/icons/app-icon";
@@ -40,6 +46,7 @@ import type { RuntimeInfo, LauncherLogEntry } from "@/types";
 type AdminSection =
   | "overview"
   | "apps"
+  | "users"
   | "devtools"
   | "maintenance"
   | "security";
@@ -51,6 +58,7 @@ const SECTIONS: {
 }[] = [
   { id: "overview", label: "Overview", icon: Activity },
   { id: "apps", label: "App Management", icon: Package },
+  { id: "users", label: "User Management", icon: Users },
   { id: "devtools", label: "Developer Tools", icon: Terminal },
   { id: "maintenance", label: "Maintenance", icon: Wrench },
   { id: "security", label: "Access & Security", icon: Shield },
@@ -191,6 +199,7 @@ export default function AdminBoard() {
       >
         {activeSection === "overview" && <OverviewSection />}
         {activeSection === "apps" && <AppManagementSection />}
+        {activeSection === "users" && <UserManagementSection />}
         {activeSection === "devtools" && <DevToolsSection />}
         {activeSection === "maintenance" && <MaintenanceSection />}
         {activeSection === "security" && <SecuritySection />}
@@ -653,7 +662,7 @@ function OverviewSection() {
 /* ═══════════════════════════════════════════════════════════ */
 
 function AppManagementSection() {
-  const { apps, runningApps, selectApp, setView, bumpAppVersion, refreshAppMeta } =
+  const { apps, runningApps, selectApp, setView, bumpAppVersion, refreshAppMeta, deployVersion, rollbackVersion, setMaintenanceMode } =
     useLauncherStore();
   const [scanning, setScanning] = useState(false);
   const [scanResults, setScanResults] = useState<
@@ -1052,9 +1061,325 @@ function AppManagementSection() {
                 )}
               </div>
             )}
+
+            {/* Version deployment & maintenance controls */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginTop: 12,
+                paddingTop: 12,
+                borderTop: "1px solid var(--border-subtle)",
+                flexWrap: "wrap",
+              }}
+            >
+              {/* Deploy version */}
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>Deploy:</span>
+                <select
+                  style={{
+                    appearance: "none",
+                    padding: "4px 24px 4px 8px",
+                    borderRadius: 6,
+                    border: "1px solid var(--border-default)",
+                    background: "var(--bg-tertiary)",
+                    color: "var(--text-primary)",
+                    fontSize: 11,
+                    cursor: "pointer",
+                  }}
+                  value={app.deployedVersion ?? app.version}
+                  onChange={(e) => deployVersion(app.id, e.target.value)}
+                >
+                  {(app.availableVersions?.length ? app.availableVersions : [app.version]).map((v) => (
+                    <option key={v} value={v}>v{v}</option>
+                  ))}
+                </select>
+                {app.deployedVersion && app.deployedVersion !== app.version && (
+                  <button
+                    className="btn-ghost"
+                    style={{ fontSize: 10, padding: "3px 8px", display: "flex", alignItems: "center", gap: 4 }}
+                    onClick={() => rollbackVersion(app.id)}
+                    title="Rollback to current version"
+                  >
+                    <RotateCcw size={10} /> Rollback
+                  </button>
+                )}
+              </div>
+
+              {/* Maintenance toggle */}
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
+                <Power size={12} style={{ color: app.maintenanceMode ? "var(--warning)" : "var(--text-muted)" }} />
+                <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>Maintenance</span>
+                <Toggle
+                  enabled={!!app.maintenanceMode}
+                  onChange={() => setMaintenanceMode(app.id, !app.maintenanceMode, app.maintenanceMessage ?? "")}
+                />
+              </div>
+            </div>
+
+            {app.maintenanceMode && (
+              <div style={{ marginTop: 8 }}>
+                <input
+                  type="text"
+                  placeholder="Maintenance message (optional)"
+                  value={app.maintenanceMessage ?? ""}
+                  onChange={(e) => setMaintenanceMode(app.id, true, e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "6px 10px",
+                    borderRadius: 6,
+                    border: "1px solid var(--border-subtle)",
+                    background: "var(--bg-tertiary)",
+                    color: "var(--text-primary)",
+                    fontSize: 11,
+                  }}
+                />
+              </div>
+            )}
           </AdminCard>
         );
       })}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════ */
+/* ─── User Management Section ──────────────────────────── */
+/* ═══════════════════════════════════════════════════════════ */
+
+function UserManagementSection() {
+  const { users, loadUsers, addUser, removeUser, updateUserRole } = useLauncherStore();
+  const [newUsername, setNewUsername] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newRole, setNewRole] = useState<"admin" | "user">("user");
+  const [adding, setAdding] = useState(false);
+
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
+
+  const handleAdd = async () => {
+    if (!newUsername.trim() || !newEmail.trim()) return;
+    setAdding(true);
+    try {
+      await addUser(newUsername.trim(), newEmail.trim(), newRole);
+      setNewUsername("");
+      setNewEmail("");
+      setNewRole("user");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  return (
+    <div className="animate-fadeIn">
+      <SectionHeader
+        title="User Management"
+        description="Manage launcher users, assign roles, and control access levels."
+      />
+
+      {/* Add user form */}
+      <AdminCard>
+        <h3
+          style={{
+            fontSize: 14,
+            fontWeight: 700,
+            marginBottom: 14,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <UserPlus size={15} />
+          Add User
+        </h3>
+        <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 160 }}>
+            <label style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, display: "block", marginBottom: 4 }}>
+              Username
+            </label>
+            <input
+              type="text"
+              value={newUsername}
+              onChange={(e) => setNewUsername(e.target.value)}
+              placeholder="johndoe"
+              style={{
+                width: "100%",
+                padding: "8px 12px",
+                borderRadius: 8,
+                border: "1px solid var(--border-subtle)",
+                background: "var(--bg-tertiary)",
+                color: "var(--text-primary)",
+                fontSize: 12,
+              }}
+            />
+          </div>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <label style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, display: "block", marginBottom: 4 }}>
+              Email
+            </label>
+            <input
+              type="email"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              placeholder="john@example.com"
+              style={{
+                width: "100%",
+                padding: "8px 12px",
+                borderRadius: 8,
+                border: "1px solid var(--border-subtle)",
+                background: "var(--bg-tertiary)",
+                color: "var(--text-primary)",
+                fontSize: 12,
+              }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, display: "block", marginBottom: 4 }}>
+              Role
+            </label>
+            <select
+              value={newRole}
+              onChange={(e) => setNewRole(e.target.value as "admin" | "user")}
+              style={{
+                padding: "8px 24px 8px 12px",
+                borderRadius: 8,
+                border: "1px solid var(--border-subtle)",
+                background: "var(--bg-tertiary)",
+                color: "var(--text-primary)",
+                fontSize: 12,
+                appearance: "none",
+              }}
+            >
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <button
+            className="btn-primary"
+            style={{ padding: "8px 20px", fontSize: 12 }}
+            onClick={handleAdd}
+            disabled={adding || !newUsername.trim() || !newEmail.trim()}
+          >
+            <UserPlus size={13} /> Add
+          </button>
+        </div>
+      </AdminCard>
+
+      {/* Users list */}
+      <AdminCard>
+        <h3
+          style={{
+            fontSize: 14,
+            fontWeight: 700,
+            marginBottom: 14,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <Users size={15} />
+          Registered Users ({users.length})
+        </h3>
+
+        {users.length === 0 ? (
+          <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
+            No users registered yet. Add a user above.
+          </p>
+        ) : (
+          <div style={{ overflow: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                  {["Username", "Email", "Role", "Last Login", "Status", "Actions"].map((h) => (
+                    <th
+                      key={h}
+                      style={{
+                        textAlign: "left",
+                        padding: "8px 12px",
+                        fontWeight: 600,
+                        color: "var(--text-muted)",
+                        fontSize: 11,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.04em",
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((user) => (
+                  <tr key={user.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                    <td style={{ padding: "10px 12px", fontWeight: 600 }}>{user.username}</td>
+                    <td style={{ padding: "10px 12px", color: "var(--text-secondary)" }}>{user.email}</td>
+                    <td style={{ padding: "10px 12px" }}>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "2px 8px",
+                          borderRadius: 4,
+                          background: user.role === "admin" ? "rgba(249,115,22,0.15)" : "var(--bg-tertiary)",
+                          color: user.role === "admin" ? "#f97316" : "var(--text-muted)",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        {user.role}
+                      </span>
+                    </td>
+                    <td style={{ padding: "10px 12px", fontSize: 11, color: "var(--text-muted)" }}>
+                      {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : "Never"}
+                    </td>
+                    <td style={{ padding: "10px 12px" }}>
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: user.isActive ? "var(--success)" : "var(--text-dim)",
+                        }}
+                      >
+                        <Circle size={7} fill={user.isActive ? "var(--success)" : "var(--text-dim)"} stroke="none" />
+                        {user.isActive ? "Active" : "Inactive"}
+                      </span>
+                    </td>
+                    <td style={{ padding: "10px 12px" }}>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        <button
+                          className="btn-ghost"
+                          style={{ fontSize: 10, padding: "3px 8px" }}
+                          onClick={() => updateUserRole(user.id, user.role === "admin" ? "user" : "admin")}
+                          title={`Switch to ${user.role === "admin" ? "user" : "admin"}`}
+                        >
+                          <Shield size={11} />
+                          {user.role === "admin" ? "Demote" : "Promote"}
+                        </button>
+                        <button
+                          className="btn-ghost"
+                          style={{ fontSize: 10, padding: "3px 8px", color: "var(--error)" }}
+                          onClick={() => {
+                            if (confirm(`Remove user ${user.username}?`)) {
+                              removeUser(user.id);
+                            }
+                          }}
+                          title="Remove user"
+                        >
+                          <UserMinus size={11} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </AdminCard>
     </div>
   );
 }
