@@ -8,6 +8,9 @@ import type {
   SystemInfo,
   GpuInfo,
   ChangelogEntry,
+  LauncherNotification,
+  LauncherUser,
+  VersionDeployment,
 } from "@/types";
 import { APP_REGISTRY } from "@/lib/app-registry";
 import { v4 as uuidv4 } from "uuid";
@@ -160,12 +163,50 @@ interface LauncherState {
   removeProject: (id: string) => void;
   updateProject: (id: string, data: Partial<Project>) => void;
 
-  /* Profiles */
+  /* Profiles (kept for data compat, UI replaced by Store) */
   profiles: EnvironmentProfile[];
   activeProfileId: string | null;
   setActiveProfile: (id: string | null) => void;
   addProfile: (profile: Omit<EnvironmentProfile, "id" | "createdAt" | "updatedAt">) => void;
   removeProfile: (id: string) => void;
+
+  /* Notifications */
+  notifications: LauncherNotification[];
+  addNotification: (n: Omit<LauncherNotification, "id" | "timestamp" | "read">) => string;
+  dismissNotification: (id: string) => void;
+  markNotificationRead: (id: string) => void;
+  clearAllNotifications: () => void;
+  updateNotificationProgress: (id: string, progress: number, message?: string) => void;
+
+  /* License Keys */
+  activateLicense: (appId: string, key: string) => Promise<boolean>;
+
+  /* Admin: Version Deployments */
+  versionDeployments: VersionDeployment[];
+  deployVersion: (appId: string, version: string) => Promise<boolean>;
+  rollbackVersion: (appId: string) => Promise<boolean>;
+  setMaintenanceMode: (appId: string, enabled: boolean, message?: string) => Promise<void>;
+
+  /* Admin: Users */
+  users: LauncherUser[];
+  loadUsers: () => Promise<void>;
+  addUser: (user: { username: string; email?: string; role: "admin" | "user" }) => Promise<void>;
+  removeUser: (userId: string) => Promise<void>;
+  updateUserRole: (userId: string, role: "admin" | "user") => Promise<void>;
+
+  /* Notification settings */
+  notifyOnInstall: boolean;
+  notifyOnUpdate: boolean;
+  notifyOnLaunch: boolean;
+  setNotifyOnInstall: (v: boolean) => void;
+  setNotifyOnUpdate: (v: boolean) => void;
+  setNotifyOnLaunch: (v: boolean) => void;
+
+  /* Update settings */
+  autoCheckUpdates: boolean;
+  autoInstallUpdates: boolean;
+  setAutoCheckUpdates: (v: boolean) => void;
+  setAutoInstallUpdates: (v: boolean) => void;
 
   /* System */
   systemInfo: SystemInfo | null;
@@ -200,11 +241,21 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
     const app = get().apps.find((a) => a.id === id);
     if (!app) return false;
 
+    // Create persistent notification for install progress
+    const notifId = get().addNotification({
+      type: "install",
+      title: `Installing ${app.name}`,
+      message: "Starting installation…",
+      appId: app.id,
+      progress: 0,
+      persistent: true,
+    });
+
     try {
       // Mark as installing in the UI
       set((s) => ({
         apps: s.apps.map((a) =>
-          a.id === id ? { ...a, installing: true, installProgress: "Starting…" } : a
+          a.id === id ? { ...a, installing: true, installProgress: "Starting…", installProgressPercent: 0 } : a
         ),
       }));
 
@@ -223,12 +274,21 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
                   installed: true,
                   installing: false,
                   installProgress: undefined,
+                  installProgressPercent: undefined,
                   installPath: result.installPath,
                   sourcePath: result.installPath,
                 }
               : a
           ),
         }));
+        // Update notification to complete
+        get().updateNotificationProgress(notifId, 100, `${app.name} installed successfully`);
+        get().addNotification({
+          type: "install",
+          title: `${app.name} Installed`,
+          message: "Installation completed successfully.",
+          appId: app.id,
+        });
         // Refresh metadata now that the app is installed
         await get().refreshAppMeta(id);
         return true;
@@ -236,17 +296,19 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
       // Reset installing state on failure
       set((s) => ({
         apps: s.apps.map((a) =>
-          a.id === id ? { ...a, installing: false, installProgress: undefined } : a
+          a.id === id ? { ...a, installing: false, installProgress: undefined, installProgressPercent: undefined } : a
         ),
       }));
+      get().updateNotificationProgress(notifId, -1, `Failed to install ${app.name}`);
       return false;
     } catch (err) {
       console.error("Failed to install app:", err);
       set((s) => ({
         apps: s.apps.map((a) =>
-          a.id === id ? { ...a, installing: false, installProgress: undefined } : a
+          a.id === id ? { ...a, installing: false, installProgress: undefined, installProgressPercent: undefined } : a
         ),
       }));
+      get().updateNotificationProgress(notifId, -1, `Error installing ${app.name}`);
       return false;
     }
   },
@@ -335,7 +397,22 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
     const app = get().apps.find((a) => a.id === id);
     if (!app) return false;
 
+    const notifId = get().addNotification({
+      type: "uninstall",
+      title: `Uninstalling ${app.name}`,
+      message: "Removing files…",
+      appId: app.id,
+      progress: 0,
+      persistent: true,
+    });
+
     try {
+      set((s) => ({
+        apps: s.apps.map((a) =>
+          a.id === id ? { ...a, uninstalling: true, uninstallProgress: "Removing files…" } : a
+        ),
+      }));
+
       const result = await window.electronAPI?.uninstallApp({
         appId: app.id,
         installPath: app.installPath || app.sourcePath,
@@ -349,6 +426,8 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
                   ...a,
                   installed: false,
                   installing: false,
+                  uninstalling: false,
+                  uninstallProgress: undefined,
                   installPath: undefined,
                   sourcePath: undefined,
                   isRunning: false,
@@ -356,11 +435,30 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
               : a
           ),
         }));
+        get().updateNotificationProgress(notifId, 100, `${app.name} uninstalled`);
+        get().addNotification({
+          type: "uninstall",
+          title: `${app.name} Uninstalled`,
+          message: "Successfully removed.",
+          appId: app.id,
+        });
         return true;
       }
+      set((s) => ({
+        apps: s.apps.map((a) =>
+          a.id === id ? { ...a, uninstalling: false, uninstallProgress: undefined } : a
+        ),
+      }));
+      get().updateNotificationProgress(notifId, -1, `Failed to uninstall ${app.name}`);
       return false;
     } catch (err) {
       console.error("Failed to uninstall app:", err);
+      set((s) => ({
+        apps: s.apps.map((a) =>
+          a.id === id ? { ...a, uninstalling: false, uninstallProgress: undefined } : a
+        ),
+      }));
+      get().updateNotificationProgress(notifId, -1, `Error uninstalling ${app.name}`);
       return false;
     }
   },
@@ -369,17 +467,34 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
     const app = get().apps.find((a) => a.id === id);
     if (!app) return;
 
+    // Check maintenance mode
+    if (app.maintenanceMode) {
+      get().addNotification({
+        type: "error",
+        title: `${app.name} Under Maintenance`,
+        message: app.maintenanceMessage || "This application is currently under maintenance.",
+        appId: app.id,
+      });
+      return;
+    }
+
     try {
+      // Show launching indicator
+      set((s) => ({
+        apps: s.apps.map((a) =>
+          a.id === id ? { ...a, isLaunching: true } : a
+        ),
+      }));
+
       // Check if the app is installed before launching
       const appPath = app.sourcePath || app.installPath || app.executablePath || "";
       if (appPath) {
         const exists = await window.electronAPI?.checkInstalled(appPath);
         if (!exists) {
           console.error(`App not installed at: ${appPath}`);
-          // Mark as not installed so UI can react
           set((s) => ({
             apps: s.apps.map((a) =>
-              a.id === id ? { ...a, installed: false } : a
+              a.id === id ? { ...a, installed: false, isLaunching: false } : a
             ),
           }));
           return;
@@ -392,20 +507,42 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
         launchScript: app.launchScript,
       };
 
-      await window.electronAPI?.launchApp(launchConfig);
+      const result = await window.electronAPI?.launchApp(launchConfig);
 
       set((s) => {
         const running = new Set(s.runningApps);
         running.add(id);
         const pids = new Map(s.runningPids);
-        // Store PID if we got one back (future: parse from launchApp return)
+        if (result?.pid) {
+          pids.set(id, result.pid);
+        }
         const apps = s.apps.map((a) =>
-          a.id === id ? { ...a, lastLaunched: Date.now(), isRunning: true } : a
+          a.id === id ? { ...a, lastLaunched: Date.now(), isRunning: true, isLaunching: false } : a
         );
         return { runningApps: running, runningPids: pids, apps };
       });
+
+      if (get().notifyOnLaunch) {
+        get().addNotification({
+          type: "launch",
+          title: `${app.name} Launched`,
+          message: "Application is now running.",
+          appId: app.id,
+        });
+      }
     } catch (err) {
       console.error("Failed to launch app:", err);
+      set((s) => ({
+        apps: s.apps.map((a) =>
+          a.id === id ? { ...a, isLaunching: false } : a
+        ),
+      }));
+      get().addNotification({
+        type: "error",
+        title: `Failed to Launch ${app.name}`,
+        message: String(err),
+        appId: app.id,
+      });
     }
   },
   stopApp: async (id) => {
@@ -582,6 +719,201 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
       return { profiles, activeProfileId };
     }),
 
+  /* ── Notifications ────────────────────────────────────── */
+  notifications: [],
+  addNotification: (n) => {
+    const id = uuidv4();
+    const notification: LauncherNotification = {
+      ...n,
+      id,
+      timestamp: Date.now(),
+      read: false,
+    };
+    set((s) => ({
+      notifications: [notification, ...s.notifications].slice(0, 100),
+    }));
+    return id;
+  },
+  dismissNotification: (id) =>
+    set((s) => ({
+      notifications: s.notifications.filter((n) => n.id !== id),
+    })),
+  markNotificationRead: (id) =>
+    set((s) => ({
+      notifications: s.notifications.map((n) =>
+        n.id === id ? { ...n, read: true } : n
+      ),
+    })),
+  clearAllNotifications: () => set({ notifications: [] }),
+  updateNotificationProgress: (id, progress, message) =>
+    set((s) => ({
+      notifications: s.notifications.map((n) =>
+        n.id === id
+          ? {
+              ...n,
+              progress: progress >= 0 ? progress : undefined,
+              message: message ?? n.message,
+              persistent: progress < 100 && progress >= 0,
+            }
+          : n
+      ),
+    })),
+
+  /* ── License Keys ─────────────────────────────────────── */
+  activateLicense: async (appId, key) => {
+    try {
+      const result = await window.electronAPI?.validateLicenseKey(appId, key);
+      if (result?.valid) {
+        set((s) => ({
+          apps: s.apps.map((a) =>
+            a.id === appId ? { ...a, licenseKey: key, licenseStatus: "valid" } : a
+          ),
+        }));
+        await window.electronAPI?.writeSettings({ [`license_${appId}`]: key });
+        get().addNotification({
+          type: "license",
+          title: "License Activated",
+          message: `License key for ${get().apps.find((a) => a.id === appId)?.name ?? appId} activated successfully.`,
+          appId,
+        });
+        return true;
+      }
+      set((s) => ({
+        apps: s.apps.map((a) =>
+          a.id === appId ? { ...a, licenseStatus: "invalid" } : a
+        ),
+      }));
+      return false;
+    } catch {
+      return false;
+    }
+  },
+
+  /* ── Admin: Version Deployments ───────────────────────── */
+  versionDeployments: [],
+  deployVersion: async (appId, version) => {
+    try {
+      const result = await window.electronAPI?.deployVersion(appId, version);
+      if (result?.deployed) {
+        const deployment: VersionDeployment = {
+          appId,
+          version,
+          deployedAt: Date.now(),
+          deployedBy: "admin",
+          isActive: true,
+        };
+        set((s) => ({
+          versionDeployments: [
+            ...s.versionDeployments.map((d) =>
+              d.appId === appId ? { ...d, isActive: false } : d
+            ),
+            deployment,
+          ],
+          apps: s.apps.map((a) =>
+            a.id === appId ? { ...a, deployedVersion: version } : a
+          ),
+        }));
+        await window.electronAPI?.writeData("versionDeployments", get().versionDeployments);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  },
+  rollbackVersion: async (appId) => {
+    try {
+      const result = await window.electronAPI?.rollbackVersion(appId);
+      if (result?.rolledBack && result.newVersion) {
+        set((s) => ({
+          apps: s.apps.map((a) =>
+            a.id === appId ? { ...a, deployedVersion: result.newVersion, version: result.newVersion! } : a
+          ),
+        }));
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  },
+  setMaintenanceMode: async (appId, enabled, message) => {
+    try {
+      await window.electronAPI?.setMaintenanceMode(appId, enabled, message);
+      set((s) => ({
+        apps: s.apps.map((a) =>
+          a.id === appId ? { ...a, maintenanceMode: enabled, maintenanceMessage: message } : a
+        ),
+      }));
+    } catch { /* ignore */ }
+  },
+
+  /* ── Admin: Users ─────────────────────────────────────── */
+  users: [],
+  loadUsers: async () => {
+    try {
+      const users = await window.electronAPI?.getUsers();
+      if (users) set({ users });
+    } catch { /* ignore */ }
+  },
+  addUser: async (userData) => {
+    try {
+      const user = await window.electronAPI?.addUser(userData);
+      if (user) {
+        set((s) => ({ users: [...s.users, user] }));
+      }
+    } catch { /* ignore */ }
+  },
+  removeUser: async (userId) => {
+    try {
+      const ok = await window.electronAPI?.removeUser(userId);
+      if (ok) {
+        set((s) => ({ users: s.users.filter((u) => u.id !== userId) }));
+      }
+    } catch { /* ignore */ }
+  },
+  updateUserRole: async (userId, role) => {
+    try {
+      const ok = await window.electronAPI?.updateUserRole(userId, role);
+      if (ok) {
+        set((s) => ({
+          users: s.users.map((u) =>
+            u.id === userId ? { ...u, role } : u
+          ),
+        }));
+      }
+    } catch { /* ignore */ }
+  },
+
+  /* ── Notification Settings ────────────────────────────── */
+  notifyOnInstall: true,
+  notifyOnUpdate: true,
+  notifyOnLaunch: false,
+  setNotifyOnInstall: (v) => {
+    set({ notifyOnInstall: v });
+    window.electronAPI?.writeSettings({ notifyOnInstall: v });
+  },
+  setNotifyOnUpdate: (v) => {
+    set({ notifyOnUpdate: v });
+    window.electronAPI?.writeSettings({ notifyOnUpdate: v });
+  },
+  setNotifyOnLaunch: (v) => {
+    set({ notifyOnLaunch: v });
+    window.electronAPI?.writeSettings({ notifyOnLaunch: v });
+  },
+
+  /* ── Update Settings ──────────────────────────────────── */
+  autoCheckUpdates: true,
+  autoInstallUpdates: false,
+  setAutoCheckUpdates: (v) => {
+    set({ autoCheckUpdates: v });
+    window.electronAPI?.writeSettings({ autoCheckUpdates: v });
+  },
+  setAutoInstallUpdates: (v) => {
+    set({ autoInstallUpdates: v });
+    window.electronAPI?.writeSettings({ autoInstallUpdates: v });
+  },
+
   /* ── System ───────────────────────────────────────────── */
   systemInfo: null,
   gpuInfo: null,
@@ -631,6 +963,11 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
           confirmLaunch: settings.confirmLaunch as boolean ?? false,
           projectsDir: (settings.projectsDir as string) || "",
           activeProfileId: (settings.activeProfileId as string) || get().activeProfileId,
+          notifyOnInstall: settings.notifyOnInstall as boolean ?? true,
+          notifyOnUpdate: settings.notifyOnUpdate as boolean ?? true,
+          notifyOnLaunch: settings.notifyOnLaunch as boolean ?? false,
+          autoCheckUpdates: settings.autoCheckUpdates as boolean ?? true,
+          autoInstallUpdates: settings.autoInstallUpdates as boolean ?? false,
         });
         applyTheme(theme, accentColor);
       }
@@ -656,13 +993,31 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
 
     // Subscribe to install progress events from main process
     try {
-      window.electronAPI?.onInstallProgress(({ appId, stage, detail }) => {
+      window.electronAPI?.onInstallProgress(({ appId, stage, detail, percent }) => {
         set((s) => ({
           apps: s.apps.map((a) =>
-            a.id === appId ? { ...a, installProgress: detail } : a
+            a.id === appId ? { ...a, installProgress: detail, installProgressPercent: percent } : a
           ),
         }));
+        // Update matching notification
+        const notif = get().notifications.find(
+          (n) => n.appId === appId && n.type === "install" && n.persistent
+        );
+        if (notif && percent !== undefined) {
+          get().updateNotificationProgress(notif.id, percent, detail);
+        }
       });
+    } catch { /* browser mode */ }
+
+    // Load version deployments
+    try {
+      const deployments = (await window.electronAPI?.readData("versionDeployments")) as VersionDeployment[] | null;
+      if (deployments) set({ versionDeployments: deployments });
+    } catch { /* first run */ }
+
+    // Load users
+    try {
+      await get().loadUsers();
     } catch { /* browser mode */ }
 
     set({ initialized: true });

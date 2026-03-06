@@ -28,12 +28,22 @@ export interface AppDefinition {
   compatibility?: CompatibilityEntry[];
   resourceUsage?: ResourceUsage;
   isRunning?: boolean;
+  isLaunching?: boolean; // show starting-up indicator
   installing?: boolean;
   installProgress?: string; // human-readable progress detail
+  installProgressPercent?: number; // 0-100 for progress bar
+  uninstalling?: boolean;
+  uninstallProgress?: string;
   pinnedVersion?: string;
   updateAvailable?: string;
   autoUpdate?: boolean;
   changelog?: ChangelogEntry[];
+  licenseKey?: string;
+  licenseStatus?: "none" | "valid" | "invalid" | "expired";
+  requiresLicense?: boolean;
+  deployedVersion?: string; // admin-controlled version that users should run
+  maintenanceMode?: boolean; // admin can put app in maintenance
+  maintenanceMessage?: string;
 }
 
 /* ─── Changelog ──────────────────────────────────────────── */
@@ -182,12 +192,68 @@ export interface LauncherLogEntry {
   message: string;
 }
 
+/* ─── Notifications ──────────────────────────────────────── */
+export interface LauncherNotification {
+  id: string;
+  type: "install" | "uninstall" | "update" | "launch" | "error" | "info" | "license";
+  title: string;
+  message: string;
+  appId?: string;
+  progress?: number; // 0-100 for progress-type notifications
+  timestamp: number;
+  read: boolean;
+  persistent?: boolean; // stays until dismissed (like Epic Games install bar)
+}
+
+/* ─── User / Admin Roles ─────────────────────────────────── */
+export type UserRole = "admin" | "user";
+
+export interface LauncherUser {
+  id: string;
+  username: string;
+  email?: string;
+  role: UserRole;
+  createdAt: number;
+  lastLogin?: number;
+  isActive: boolean;
+  avatar?: string;
+}
+
+/* ─── Version Deployment (Admin) ─────────────────────────── */
+export interface VersionDeployment {
+  appId: string;
+  version: string;
+  deployedAt: number;
+  deployedBy: string;
+  isActive: boolean;
+  rollbackVersion?: string;
+  notes?: string;
+}
+
+/* ─── Store Page ─────────────────────────────────────────── */
+export interface StoreApp {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  category: AppCategory;
+  vendor: string;
+  version: string;
+  size?: string;
+  rating?: number;
+  downloads?: number;
+  featured?: boolean;
+  isOwned: boolean;
+  requiresLicense: boolean;
+  price?: string; // "Free" or price string
+}
+
 /* ─── Navigation ─────────────────────────────────────────── */
 export type NavView =
   | "dashboard"
   | "library"
   | "projects"
-  | "profiles"
+  | "store"
   | "settings"
   | "admin"
   | "app-detail";
@@ -266,7 +332,24 @@ declare global {
       getStorageInfo: () => Promise<{ cacheSize: number; dataSize: number }>;
       getDataDir: () => Promise<string>;
       killProcess: (pid: number) => Promise<{ killed: boolean; error?: string }>;
-      onInstallProgress: (callback: (data: { appId: string; stage: string; detail: string }) => void) => () => void;
+      onInstallProgress: (callback: (data: { appId: string; stage: string; detail: string; percent?: number }) => void) => () => void;
+      onUninstallProgress: (callback: (data: { appId: string; stage: string; detail: string }) => void) => () => void;
+
+      // License
+      validateLicenseKey: (appId: string, key: string) => Promise<{ valid: boolean; expiresAt?: number; message?: string }>;
+      getLicenseStatus: (appId: string) => Promise<{ status: "none" | "valid" | "invalid" | "expired"; key?: string }>;
+
+      // Version management (admin)
+      getAvailableVersions: (appId: string) => Promise<string[]>;
+      deployVersion: (appId: string, version: string) => Promise<{ deployed: boolean; error?: string }>;
+      rollbackVersion: (appId: string) => Promise<{ rolledBack: boolean; newVersion?: string; error?: string }>;
+      setMaintenanceMode: (appId: string, enabled: boolean, message?: string) => Promise<boolean>;
+
+      // User management
+      getUsers: () => Promise<import("@/types").LauncherUser[]>;
+      addUser: (user: { username: string; email?: string; role: import("@/types").UserRole }) => Promise<import("@/types").LauncherUser>;
+      removeUser: (userId: string) => Promise<boolean>;
+      updateUserRole: (userId: string, role: import("@/types").UserRole) => Promise<boolean>;
     };
   }
 }

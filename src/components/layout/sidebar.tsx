@@ -5,7 +5,7 @@ import {
   LayoutDashboard,
   Library,
   FolderKanban,
-  UserCircle,
+  Store,
   Settings,
   Shield,
   Cpu,
@@ -18,7 +18,7 @@ const NAV_ITEMS: { id: NavView; label: string; icon: React.ElementType }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "library", label: "Library", icon: Library },
   { id: "projects", label: "Projects", icon: FolderKanban },
-  { id: "profiles", label: "Profiles", icon: UserCircle },
+  { id: "store", label: "Store", icon: Store },
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
