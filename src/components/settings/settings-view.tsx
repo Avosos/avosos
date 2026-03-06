@@ -599,14 +599,76 @@ function StorageSettings() {
 }
 
 function CloudSettings() {
+  const [serverUrl, setServerUrl] = useState("");
+  const [syncSettings, setSyncSettings] = useState(true);
+  const [syncProjects, setSyncProjects] = useState(false);
+
   return (
     <div className="animate-fadeIn">
       <SettingGroup
         title="Cloud Synchronization"
-        description="Sync your settings, profiles, and plugins across devices"
+        description="Sync your settings and projects across devices (requires Avosos server)"
       >
-        <ComingSoonBanner feature="Cloud Sync" description="Cloud synchronization for settings, profiles, and plugins across devices will be available in a future release. This will require an Avosos account." />
+        <SettingRow label="Server URL" description="Your Avosos sync server address">
+          <input
+            type="text"
+            value={serverUrl}
+            onChange={(e) => setServerUrl(e.target.value)}
+            placeholder="https://your-server.example.com"
+            style={{
+              width: 240,
+              padding: "6px 10px",
+              borderRadius: 8,
+              border: "1px solid var(--border-subtle)",
+              background: "var(--bg-tertiary)",
+              color: "var(--text-primary)",
+              fontSize: 12,
+            }}
+          />
+        </SettingRow>
+        <SettingRow
+          label="Sync settings"
+          description="Synchronize launcher preferences and appearance"
+        >
+          <Toggle enabled={syncSettings} onChange={() => setSyncSettings(!syncSettings)} />
+        </SettingRow>
+        <SettingRow
+          label="Sync projects"
+          description="Synchronize project metadata and configuration"
+        >
+          <Toggle enabled={syncProjects} onChange={() => setSyncProjects(!syncProjects)} />
+        </SettingRow>
+        <SettingRow label="Last sync" description="Never — server not configured">
+          <button
+            className="btn-secondary"
+            style={{ padding: "5px 12px", fontSize: 12 }}
+            disabled={!serverUrl.trim()}
+            onClick={() => {/* future: trigger sync */}}
+          >
+            Sync Now
+          </button>
+        </SettingRow>
       </SettingGroup>
+
+      {!serverUrl.trim() && (
+        <div
+          style={{
+            padding: "16px 20px",
+            borderRadius: 10,
+            border: "1px dashed var(--border-default)",
+            background: "var(--bg-card)",
+            textAlign: "center",
+          }}
+        >
+          <Lock size={20} style={{ color: "var(--text-dim)", marginBottom: 6 }} />
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>
+            Server required
+          </div>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, maxWidth: 360, margin: "0 auto" }}>
+            Cloud sync requires a configured Avosos server. Enter your server URL above to enable synchronization.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
