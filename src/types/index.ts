@@ -68,6 +68,7 @@ export type AppCategory =
   | "audio"
   | "3d"
   | "utilities"
+  | "bots"
   | "entertainment"
   | "productivity"
   | "writing"

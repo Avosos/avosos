@@ -285,6 +285,75 @@ export const APP_REGISTRY: AppDefinition[] = [
       },
     ],
   },
+
+  // ── BangerBot ──────────────────────────────────────────────
+  {
+    id: "bangerbot",
+    name: "BangerBot",
+    slug: "bangerbot",
+    description: "Feature-rich Discord bot with levels, tickets & premium",
+    longDescription:
+      "BangerBot is a versatile Discord bot built with Python and ezcord. It features " +
+      "a complete leveling system with XP tracking and role rewards, a configurable " +
+      "ticket support system with HTML transcript export, a premium code system with " +
+      "time-based expiry, server join/leave tracking, moderation tools (ban, logging), " +
+      "and developer administration commands — all powered by SQLite.",
+    vendor: "Avosos",
+    version: "1.1.5",
+    availableVersions: ["1.1.5"],
+    category: "bots",
+    tags: [
+      "discord",
+      "bot",
+      "python",
+      "leveling",
+      "tickets",
+      "premium",
+      "moderation",
+    ],
+    icon: "bangerbot",
+    installed: false,
+    repoUrl: "https://github.com/Avosos/bangerbot",
+    launchCommand: "python",
+    launchArgs: ["main.py"],
+    size: "12 MB",
+    lastUpdated: Date.now(),
+    autoUpdate: true,
+    plugins: [
+      {
+        id: "bb-levelsys",
+        name: "Level System",
+        version: "1.0.0",
+        installed: true,
+        description:
+          "XP tracking, level-up notifications, role rewards, and leaderboards",
+      },
+      {
+        id: "bb-tickets",
+        name: "Ticket System",
+        version: "1.0.0",
+        installed: true,
+        description:
+          "Configurable support tickets with dropdown selection and HTML transcripts",
+      },
+      {
+        id: "bb-premium",
+        name: "Premium System",
+        version: "1.0.0",
+        installed: true,
+        description:
+          "Premium code generation, redemption, and time-based expiry management",
+      },
+    ],
+    compatibility: [
+      {
+        appVersion: "1.1.5",
+        os: ["win32", "darwin", "linux"],
+        minRam: 256 * 1024 * 1024,
+        notes: "Requires Python 3.12+ and a Discord bot token",
+      },
+    ],
+  },
 ];
 
 export const CATEGORY_META: Record<
@@ -297,6 +366,7 @@ export const CATEGORY_META: Record<
   audio: { label: "Audio", color: "#fbbf24", icon: "Music" },
   "3d": { label: "3D", color: "#f97316", icon: "Box" },
   utilities: { label: "Utilities", color: "#a78bfa", icon: "Wrench" },
+  bots: { label: "Bots", color: "#5865F2", icon: "Bot" },
   entertainment: { label: "Entertainment", color: "#f43f5e", icon: "BookOpen" },
   productivity: { label: "Productivity", color: "#2dd4bf", icon: "Layout" },
   writing: { label: "Writing", color: "#a3e635", icon: "PenTool" },
