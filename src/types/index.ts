@@ -110,6 +110,19 @@ export interface Project {
   environmentVars?: Record<string, string>;
   tags?: string[];
   profileId?: string;
+  status?: "active" | "paused" | "completed" | "archived";
+  notes?: string;
+  color?: string;
+  priority?: "low" | "medium" | "high";
+  deadline?: number;
+  activity?: ProjectActivity[];
+}
+
+export interface ProjectActivity {
+  id: string;
+  type: "created" | "app-launched" | "note-updated" | "status-changed" | "files-modified";
+  message: string;
+  timestamp: number;
 }
 
 export interface ProjectAppRef {

@@ -5,12 +5,20 @@ import {
   Plus,
   FolderOpen,
   Clock,
-  MoreHorizontal,
   Search,
   Trash2,
   Play,
-  ExternalLink,
   X,
+  FileText,
+  Calendar,
+  CheckCircle2,
+  Pause,
+  Archive,
+  Activity,
+  Flag,
+  ChevronDown,
+  Edit3,
+  Save,
 } from "lucide-react";
 import { useLauncherStore } from "@/stores/launcher-store";
 import AppIcon from "@/components/icons/app-icon";
