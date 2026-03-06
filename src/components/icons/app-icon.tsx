@@ -4,12 +4,16 @@ import React from "react";
 import CuttamaranIcon from "./cuttamaran-icon";
 import VoicianIcon from "./voician-icon";
 import StreampadIcon from "./streampad-icon";
+import ManwhawhamIcon from "./manwhawham-icon";
+import NovelteaIcon from "./noveltea-icon";
 import { Box } from "lucide-react";
 
 const ICON_MAP: Record<string, React.FC<{ size?: number }>> = {
   cuttamaran: CuttamaranIcon,
   voician: VoicianIcon,
   streampad: StreampadIcon,
+  manwhawham: ManwhawhamIcon,
+  noveltea: NovelteaIcon,
 };
 
 /**

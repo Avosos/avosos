@@ -119,6 +119,104 @@ export const APP_REGISTRY: AppDefinition[] = [
     ],
   },
 
+  // ── ManwhaWham ─────────────────────────────────────────────
+  {
+    id: "manwhawham",
+    name: "ManwhaWham",
+    slug: "manwhawham",
+    description: "Manga & Manhwa reader powered by MangaDex",
+    longDescription:
+      "ManwhaWham is a sleek desktop manga and manhwa reader built with Electron " +
+      "and Next.js. Browse, search, and read from the MangaDex catalog with a " +
+      "beautiful dark UI, vertical/horizontal reading modes, library management, " +
+      "reading history, offline downloads, and image proxying — all without ads.",
+    vendor: "Avosos",
+    version: "0.1.0",
+    availableVersions: ["0.1.0"],
+    category: "entertainment",
+    tags: ["manga", "manhwa", "reader", "mangadex", "comics", "electron"],
+    icon: "manwhawham",
+    installed: false,
+    repoUrl: "https://github.com/Avosos/manwhawham",
+    launchScript: "dev",
+    size: "95 MB",
+    lastUpdated: Date.now(),
+    autoUpdate: true,
+    plugins: [
+      {
+        id: "mw-tracker",
+        name: "Reading Tracker",
+        version: "1.0.0",
+        installed: true,
+        description: "Track reading progress and history across all manga",
+      },
+      {
+        id: "mw-downloader",
+        name: "Offline Reader",
+        version: "1.0.0",
+        installed: true,
+        description: "Download chapters for offline reading",
+      },
+    ],
+    compatibility: [
+      {
+        appVersion: "0.1.0",
+        os: ["win32", "darwin", "linux"],
+        minRam: 512 * 1024 * 1024,
+        notes: "Requires internet connection for MangaDex API access",
+      },
+    ],
+  },
+
+  // ── NovelTea ───────────────────────────────────────────────
+  {
+    id: "noveltea",
+    name: "NovelTea",
+    slug: "noveltea",
+    description: "Structured authoring environment for novels",
+    longDescription:
+      "NovelTea is a specialised authoring environment for novelists. It offers " +
+      "chapter & scene organisation, worldbuilding entities with bidirectional linking, " +
+      "conflict & Chekhov's gun tracking, three-act story mapping, timeline visualisation, " +
+      "a contextual writing editor, and detailed statistics — all in a beautiful dark UI.",
+    vendor: "Avosos",
+    version: "0.1.0",
+    availableVersions: ["0.1.0"],
+    category: "writing",
+    tags: ["writing", "novel", "authoring", "worldbuilding", "electron", "creative"],
+    icon: "noveltea",
+    installed: false,
+    repoUrl: "https://github.com/Avosos/noveltea",
+    launchScript: "dev",
+    size: "78 MB",
+    lastUpdated: Date.now(),
+    autoUpdate: true,
+    plugins: [
+      {
+        id: "nt-export",
+        name: "Export Pack",
+        version: "1.0.0",
+        installed: true,
+        description: "Export your novel to EPUB, PDF, Markdown, and DOCX",
+      },
+      {
+        id: "nt-distraction-free",
+        name: "Distraction Free",
+        version: "1.0.0",
+        installed: true,
+        description: "Full-screen distraction-free writing mode with ambient sounds",
+      },
+    ],
+    compatibility: [
+      {
+        appVersion: "0.1.0",
+        os: ["win32", "darwin", "linux"],
+        minRam: 512 * 1024 * 1024,
+        notes: "Projects stored as JSON files on disk",
+      },
+    ],
+  },
+
   // ── StreamPad ──────────────────────────────────────────────
   {
     id: "streampad",
@@ -199,8 +297,10 @@ export const CATEGORY_META: Record<
   audio: { label: "Audio", color: "#fbbf24", icon: "Music" },
   "3d": { label: "3D", color: "#f97316", icon: "Box" },
   utilities: { label: "Utilities", color: "#a78bfa", icon: "Wrench" },
+  entertainment: { label: "Entertainment", color: "#f43f5e", icon: "BookOpen" },
   productivity: { label: "Productivity", color: "#2dd4bf", icon: "Layout" },
-  ai: { label: "AI", color: "#f43f5e", icon: "Sparkles" },
+  writing: { label: "Writing", color: "#a3e635", icon: "PenTool" },
+  ai: { label: "AI", color: "#ec4899", icon: "Sparkles" },
 };
 
 export function getAppById(id: string): AppDefinition | undefined {

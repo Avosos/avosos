@@ -58,7 +58,9 @@ export type AppCategory =
   | "audio"
   | "3d"
   | "utilities"
+  | "entertainment"
   | "productivity"
+  | "writing"
   | "ai";
 
 export interface AppPlugin {
