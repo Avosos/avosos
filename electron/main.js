@@ -395,12 +395,19 @@ async function postInstallDeps(appDir, sendProgress = () => {}) {
 // ─── Uninstall application ────────────────────────────────
 ipcMain.handle("app:uninstall", async (_event, { appId, installPath }) => {
   if (!installPath) {
-    // Try default path
     const installDir = getInstallDir();
     installPath = path.join(installDir, appId);
   }
 
+  const sendProgress = (percent) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("uninstall:progress", { appId, percent });
+    }
+  };
+
   if (fs.existsSync(installPath)) {
+    sendProgress(10);
+
     // On Windows, node_modules / .git often contain read-only files
     // which cause EPERM. Strip read-only attributes first.
     if (process.platform === "win32") {
@@ -409,7 +416,10 @@ ipcMain.handle("app:uninstall", async (_event, { appId, installPath }) => {
         ex(`attrib -R "${installPath}\\*.*" /S /D`, { stdio: "pipe", timeout: 30000 });
       } catch { /* best effort */ }
     }
+    sendProgress(40);
+
     fs.rmSync(installPath, { recursive: true, force: true, maxRetries: 3, retryDelay: 500 });
+    sendProgress(100);
     return { uninstalled: true, path: installPath };
   }
 
@@ -1104,6 +1114,114 @@ ipcMain.handle("admin:resetLauncher", () => {
   } catch (err) {
     return { reset: false, error: err.message };
   }
+});
+
+// ─── Generic JSON helpers for data files ──────────────────
+function readDataJson(filename) {
+  const p = path.join(dataDir, filename);
+  try {
+    if (fs.existsSync(p)) return JSON.parse(fs.readFileSync(p, "utf-8"));
+  } catch { /* ignore */ }
+  return null;
+}
+
+function writeDataJson(filename, data) {
+  fs.writeFileSync(path.join(dataDir, filename), JSON.stringify(data, null, 2));
+}
+
+// ─── License management ───────────────────────────────────
+ipcMain.handle("license:validate", async (_event, { appId, licenseKey }) => {
+  const licenses = readDataJson("licenses.json") || {};
+  // Basic format validation (XXXX-XXXX-XXXX-XXXX)
+  const valid = /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/i.test(licenseKey);
+  if (valid) {
+    licenses[appId] = { key: licenseKey, status: "active", activatedAt: new Date().toISOString() };
+    writeDataJson("licenses.json", licenses);
+    return { valid: true, status: "active" };
+  }
+  return { valid: false, status: "invalid" };
+});
+
+ipcMain.handle("license:status", async (_event, { appId }) => {
+  const licenses = readDataJson("licenses.json") || {};
+  if (licenses[appId]) return licenses[appId];
+  return { status: "none" };
+});
+
+// ─── Version deployment ───────────────────────────────────
+ipcMain.handle("version:available", async (_event, { appId }) => {
+  const versions = readDataJson("versions.json") || {};
+  return versions[appId] || ["1.0.0"];
+});
+
+ipcMain.handle("version:deploy", async (_event, { appId, version }) => {
+  const deployments = readDataJson("deployments.json") || {};
+  deployments[appId] = { version, deployedAt: new Date().toISOString() };
+  writeDataJson("deployments.json", deployments);
+  return { deployed: true, version };
+});
+
+ipcMain.handle("version:rollback", async (_event, { appId }) => {
+  const deployments = readDataJson("deployments.json") || {};
+  if (deployments[appId]) {
+    const prev = deployments[appId].previousVersion || "1.0.0";
+    deployments[appId] = { version: prev, deployedAt: new Date().toISOString() };
+    writeDataJson("deployments.json", deployments);
+    return { rolledBack: true, version: prev };
+  }
+  return { rolledBack: false };
+});
+
+// ─── Maintenance mode management ──────────────────────────
+ipcMain.handle("admin:setMaintenance", async (_event, { appId, enabled, message }) => {
+  const maintenance = readDataJson("maintenance.json") || {};
+  maintenance[appId] = { enabled, message: message || "", updatedAt: new Date().toISOString() };
+  writeDataJson("maintenance.json", maintenance);
+  return { success: true };
+});
+
+// ─── User management ──────────────────────────────────────
+ipcMain.handle("admin:getUsers", async () => {
+  return readDataJson("users.json") || [];
+});
+
+ipcMain.handle("admin:addUser", async (_event, { username, email, role }) => {
+  const users = readDataJson("users.json") || [];
+  const newUser = {
+    id: `user-${Date.now()}`,
+    username,
+    email,
+    role: role || "user",
+    active: true,
+    createdAt: new Date().toISOString(),
+  };
+  users.push(newUser);
+  writeDataJson("users.json", users);
+  return newUser;
+});
+
+ipcMain.handle("admin:removeUser", async (_event, { userId }) => {
+  let users = readDataJson("users.json") || [];
+  users = users.filter((u) => u.id !== userId);
+  writeDataJson("users.json", users);
+  return { removed: true };
+});
+
+ipcMain.handle("admin:updateUserRole", async (_event, { userId, role }) => {
+  const users = readDataJson("users.json") || [];
+  const user = users.find((u) => u.id === userId);
+  if (user) {
+    user.role = role;
+    writeDataJson("users.json", users);
+    return { updated: true };
+  }
+  return { updated: false };
+});
+
+// ─── Update checker ───────────────────────────────────────
+ipcMain.handle("app:checkForUpdates", async (_event, { appId }) => {
+  // Placeholder – in production this would hit a remote API
+  return { appId, updateAvailable: false, currentVersion: "1.0.0" };
 });
 
 app.whenReady().then(createWindow);

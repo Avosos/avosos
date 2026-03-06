@@ -4,15 +4,12 @@ import React, { useState, useMemo } from "react";
 import {
   Store,
   Search,
-  Star,
   Download,
   Play,
   Key,
   Check,
-  Crown,
   Sparkles,
   ChevronDown,
-  ExternalLink,
   Lock,
   X,
 } from "lucide-react";
@@ -528,7 +525,6 @@ function StoreCard({
 }
 
 function LicenseModal({
-  appId,
   appName,
   onClose,
   onActivate,

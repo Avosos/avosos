@@ -10,9 +10,6 @@ import {
   AlertTriangle,
   Info,
   Key,
-  Check,
-  ChevronDown,
-  ChevronUp,
 } from "lucide-react";
 import { useLauncherStore } from "@/stores/launcher-store";
 import type { LauncherNotification } from "@/types";
