@@ -7,9 +7,10 @@ import DashboardView from "@/components/dashboard/dashboard-view";
 import LibraryView from "@/components/library/library-view";
 import AppDetailView from "@/components/library/app-detail-view";
 import ProjectsView from "@/components/projects/projects-view";
-import ProfilesView from "@/components/profiles/profiles-view";
+import StoreView from "@/components/store/store-view";
 import SettingsView from "@/components/settings/settings-view";
 import AdminBoard from "@/components/admin/admin-board";
+import NotificationPanel from "@/components/layout/notification-panel";
 import { useLauncherStore } from "@/stores/launcher-store";
 
 export default function MainLayout() {
