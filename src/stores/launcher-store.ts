@@ -14,6 +14,7 @@ import type {
 } from "@/types";
 import { APP_REGISTRY } from "@/lib/app-registry";
 import { v4 as uuidv4 } from "uuid";
+import type { Language } from "@/lib/i18n";
 
 /* ── Theme helpers ──────────────────────────────────────── */
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
@@ -146,6 +147,10 @@ interface LauncherState {
   accentColor: string;
   setTheme: (theme: "dark" | "light" | "grey") => void;
   setAccentColor: (color: string) => void;
+
+  /* Language */
+  language: Language;
+  setLanguage: (lang: Language) => void;
 
   /* General settings (persisted) */
   startOnBoot: boolean;
@@ -369,6 +374,13 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
     set({ accentColor: color });
     applyTheme(get().theme, color);
     window.electronAPI?.writeSettings({ accentColor: color });
+  },
+
+  /* Language */
+  language: "en" as Language,
+  setLanguage: (lang) => {
+    set({ language: lang });
+    window.electronAPI?.writeSettings({ language: lang });
   },
 
   /* General settings (persisted) */
@@ -958,6 +970,7 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
         set({
           theme,
           accentColor,
+          language: (settings.language as Language) || "en",
           startOnBoot: settings.startOnBoot as boolean ?? false,
           minimizeToTray: settings.minimizeToTray as boolean ?? true,
           confirmLaunch: settings.confirmLaunch as boolean ?? false,
