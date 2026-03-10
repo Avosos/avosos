@@ -286,6 +286,207 @@ export const APP_REGISTRY: AppDefinition[] = [
     ],
   },
 
+  // ── TrackEm ─────────────────────────────────────────────────
+  {
+    id: "trackem",
+    name: "TrackEm",
+    slug: "trackem",
+    description: "Desktop manga & manhwa chapter tracker",
+    longDescription:
+      "TrackEm is a powerful desktop manga, manhwa, and manhua tracker. " +
+      "Search and add titles from multiple sources (MangaDex, RizzFables, AsuraScans, " +
+      "MangaKakalot), track chapter uploads with automatic checking, receive desktop " +
+      "notifications for new releases, browse and discover new titles, and manage your " +
+      "reading library — all with a beautiful dark UI, background tray mode, and " +
+      "import/export support. Also available as a browser extension and mobile PWA.",
+    vendor: "Avosos",
+    version: "1.0.0",
+    availableVersions: ["1.0.0"],
+    category: "entertainment",
+    tags: [
+      "manga",
+      "manhwa",
+      "tracker",
+      "notifications",
+      "chapters",
+      "electron",
+      "browser extension",
+      "pwa",
+    ],
+    icon: "trackem",
+    installed: false,
+    repoUrl: "https://github.com/Avosos/trackem",
+    launchScript: "dev",
+    size: "45 MB",
+    lastUpdated: Date.now(),
+    autoUpdate: true,
+    plugins: [
+      {
+        id: "tk-mangadex",
+        name: "MangaDex Source",
+        version: "1.0.0",
+        installed: true,
+        description:
+          "Search and track manga from MangaDex — the largest free manga library",
+      },
+      {
+        id: "tk-asura",
+        name: "AsuraScans Source",
+        version: "1.0.0",
+        installed: true,
+        description:
+          "Track manhwa from AsuraScans, one of the top manhwa scan groups",
+      },
+      {
+        id: "tk-browser-ext",
+        name: "Browser Extension",
+        version: "1.0.0",
+        installed: false,
+        description:
+          "Track manga directly from your browser while reading on any supported site",
+      },
+    ],
+    compatibility: [
+      {
+        appVersion: "1.0.0",
+        os: ["win32", "darwin", "linux"],
+        minRam: 256 * 1024 * 1024,
+        notes:
+          "Requires internet for source APIs. Supports background tray mode.",
+      },
+    ],
+  },
+
+  // ── Appliview ──────────────────────────────────────────────
+  {
+    id: "appliview",
+    name: "Appliview",
+    slug: "appliview",
+    description: "Application tracking for jobs, dual studies & apprenticeships",
+    longDescription:
+      "Appliview is a personal application tracking system for managing job, dual study, " +
+      "and apprenticeship applications. Track applications through a non-linear pipeline, " +
+      "visualize flow patterns with Sankey diagrams, schedule interviews and assessments, " +
+      "export/import CSV data, and see detailed analytics — all in a beautiful UI with " +
+      "full English and German localization.",
+    vendor: "Avosos",
+    version: "0.1.0",
+    availableVersions: ["0.1.0"],
+    category: "productivity",
+    tags: [
+      "applications",
+      "job tracker",
+      "career",
+      "analytics",
+      "sankey",
+      "electron",
+      "i18n",
+    ],
+    icon: "appliview",
+    installed: false,
+    repoUrl: "https://github.com/Avosos/appliview",
+    launchScript: "dev:electron",
+    size: "72 MB",
+    lastUpdated: Date.now(),
+    autoUpdate: true,
+    plugins: [
+      {
+        id: "av-sankey",
+        name: "Sankey Analytics",
+        version: "1.0.0",
+        installed: true,
+        description:
+          "Interactive Sankey flow diagrams showing how applications move through stages",
+      },
+      {
+        id: "av-csv-import",
+        name: "CSV Import/Export",
+        version: "1.0.0",
+        installed: true,
+        description:
+          "Import from and export to CSV with intelligent status mapping and auto-detection",
+      },
+      {
+        id: "av-i18n",
+        name: "Internationalization",
+        version: "1.0.0",
+        installed: true,
+        description:
+          "Full English and German language support with instant UI switching",
+      },
+    ],
+    compatibility: [
+      {
+        appVersion: "0.1.0",
+        os: ["win32", "darwin", "linux"],
+        minRam: 512 * 1024 * 1024,
+        notes: "Data stored locally in localStorage with JSON/CSV export",
+      },
+    ],
+  },
+
+  // ── Eurobar ────────────────────────────────────────────────
+  {
+    id: "eurobar",
+    name: "Eurobar",
+    slug: "eurobar",
+    description: "Product barcode scanner identifying origin & brand info",
+    longDescription:
+      "Eurobar is a barcode scanner web application that identifies product origin and " +
+      "brand information. Scan barcodes with your camera or type them manually to discover " +
+      "which country a product comes from and what brand manufactures it. Powered by Open " +
+      "Food Facts with local PostgreSQL caching, country flags, brand logos, and a " +
+      "community contribution system for missing products.",
+    vendor: "Avosos",
+    version: "0.1.0",
+    availableVersions: ["0.1.0"],
+    category: "utilities",
+    tags: [
+      "barcode",
+      "scanner",
+      "product origin",
+      "spring boot",
+      "react",
+      "postgresql",
+      "camera",
+    ],
+    icon: "eurobar",
+    installed: false,
+    repoUrl: "https://github.com/Avosos/eurobar",
+    launchCommand: "docker",
+    launchArgs: ["compose", "up", "-d"],
+    size: "120 MB",
+    lastUpdated: Date.now(),
+    autoUpdate: true,
+    plugins: [
+      {
+        id: "eb-openfoodfacts",
+        name: "Open Food Facts",
+        version: "1.0.0",
+        installed: true,
+        description:
+          "Automatic product lookup via the Open Food Facts API with local caching",
+      },
+      {
+        id: "eb-camera",
+        name: "Camera Scanner",
+        version: "1.0.0",
+        installed: true,
+        description:
+          "Live barcode scanning using ZXing with camera access",
+      },
+    ],
+    compatibility: [
+      {
+        appVersion: "0.1.0",
+        os: ["win32", "darwin", "linux"],
+        minRam: 1024 * 1024 * 1024,
+        notes:
+          "Requires Docker for PostgreSQL database and Java 21 for Spring Boot backend",
+      },
+    ],
+  },
+
   // ── BangerBot ──────────────────────────────────────────────
   {
     id: "bangerbot",
