@@ -7,6 +7,9 @@ import StreampadIcon from "./streampad-icon";
 import ManwhawhamIcon from "./manwhawham-icon";
 import NovelteaIcon from "./noveltea-icon";
 import BangerbotIcon from "./bangerbot-icon";
+import TrackemIcon from "./trackem-icon";
+import AppliviewIcon from "./appliview-icon";
+import EurobarIcon from "./eurobar-icon";
 import { Box } from "lucide-react";
 
 const ICON_MAP: Record<string, React.FC<{ size?: number }>> = {
@@ -16,6 +19,9 @@ const ICON_MAP: Record<string, React.FC<{ size?: number }>> = {
   manwhawham: ManwhawhamIcon,
   noveltea: NovelteaIcon,
   bangerbot: BangerbotIcon,
+  trackem: TrackemIcon,
+  appliview: AppliviewIcon,
+  eurobar: EurobarIcon,
 };
 
 /**
