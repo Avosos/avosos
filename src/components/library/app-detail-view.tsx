@@ -1256,6 +1256,175 @@ function DetailSection({
   );
 }
 
+/* ─── Dependencies Tab ─────────────────────────────────── */
+function DependenciesTab({ app }: { app: import("@/types").AppDefinition }) {
+  const { checkOutdated, updateDeps, outdatedPackages, updatingDeps } = useLauncherStore();
+  const [checked, setChecked] = React.useState(false);
+  const [checking, setChecking] = React.useState(false);
+
+  const outdated = outdatedPackages[app.id] ?? [];
+  const isUpdating = updatingDeps.has(app.id);
+  const isNodeApp = app.id !== "voician"; // Rust apps don't have npm deps
+  const appPath = app.installPath || app.sourcePath;
+
+  const handleCheck = async () => {
+    setChecking(true);
+    await checkOutdated(app.id);
+    setChecking(false);
+    setChecked(true);
+  };
+
+  const handleUpdate = async () => {
+    await updateDeps(app.id);
+  };
+
+  if (!isNodeApp) {
+    return (
+      <div style={{ padding: 24, textAlign: "center", color: "var(--text-muted)" }}>
+        <Wrench size={48} style={{ opacity: 0.3, marginBottom: 12 }} />
+        <div style={{ fontSize: 14, fontWeight: 500 }}>
+          This is a Rust project — dependency management is handled via Cargo.
+        </div>
+      </div>
+    );
+  }
+
+  if (!appPath) {
+    return (
+      <div style={{ padding: 24, textAlign: "center", color: "var(--text-muted)" }}>
+        <AlertTriangle size={48} style={{ opacity: 0.3, marginBottom: 12 }} />
+        <div style={{ fontSize: 14, fontWeight: 500 }}>
+          App is not installed. Install it first to manage dependencies.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Actions bar */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          padding: "16px 0",
+          borderBottom: "1px solid var(--border-subtle)",
+        }}
+      >
+        <button
+          className="btn btn-secondary"
+          onClick={handleCheck}
+          disabled={checking || isUpdating}
+          style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500,
+            background: "var(--bg-surface)", border: "1px solid var(--border-default)",
+            color: "var(--text-primary)", cursor: checking ? "wait" : "pointer",
+          }}
+        >
+          <RefreshCw size={14} style={checking ? { animation: "spin 1s linear infinite" } : undefined} />
+          {checking ? "Checking…" : "Check for Updates"}
+        </button>
+
+        {outdated.length > 0 && (
+          <button
+            onClick={handleUpdate}
+            disabled={isUpdating}
+            style={{
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "8px 16px", borderRadius: 8, fontSize: 13, fontWeight: 500,
+              background: "var(--accent)", border: "none",
+              color: "#fff", cursor: isUpdating ? "wait" : "pointer",
+            }}
+          >
+            <ArrowUp size={14} />
+            {isUpdating ? "Updating…" : `Update ${outdated.length} package${outdated.length > 1 ? "s" : ""}`}
+          </button>
+        )}
+
+        {checked && outdated.length === 0 && (
+          <span style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--success)", fontSize: 13 }}>
+            <Check size={14} /> All packages are up to date
+          </span>
+        )}
+      </div>
+
+      {/* Outdated packages list */}
+      {outdated.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {/* Header */}
+          <div
+            style={{
+              display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 120px", gap: 12,
+              padding: "8px 16px", fontSize: 11, fontWeight: 600,
+              color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em",
+            }}
+          >
+            <span>Package</span>
+            <span>Current</span>
+            <span>Wanted</span>
+            <span>Latest</span>
+            <span>Type</span>
+          </div>
+
+          {/* Rows */}
+          {outdated.map((pkg) => {
+            const isMajor = pkg.current.split(".")[0] !== pkg.latest.split(".")[0];
+            return (
+              <div
+                key={pkg.name}
+                style={{
+                  display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 120px", gap: 12,
+                  padding: "10px 16px", fontSize: 13,
+                  background: "var(--bg-card)", borderRadius: 6,
+                  border: "1px solid var(--border-subtle)",
+                }}
+              >
+                <span style={{ fontWeight: 500, color: "var(--text-primary)" }}>
+                  {pkg.name}
+                </span>
+                <span style={{ color: "var(--text-secondary)", fontFamily: "monospace", fontSize: 12 }}>
+                  {pkg.current}
+                </span>
+                <span style={{ color: "var(--success)", fontFamily: "monospace", fontSize: 12 }}>
+                  {pkg.wanted}
+                </span>
+                <span
+                  style={{
+                    color: isMajor ? "var(--warning)" : "var(--success)",
+                    fontFamily: "monospace", fontSize: 12,
+                  }}
+                >
+                  {pkg.latest}
+                  {isMajor && " ⚠"}
+                </span>
+                <span
+                  style={{
+                    fontSize: 11, padding: "2px 8px", borderRadius: 4,
+                    background: pkg.type === "devDependencies" ? "var(--info-muted)" : "var(--accent-muted)",
+                    color: pkg.type === "devDependencies" ? "var(--info)" : "var(--accent)",
+                    fontWeight: 500, textAlign: "center", alignSelf: "center",
+                  }}
+                >
+                  {pkg.type === "devDependencies" ? "dev" : "prod"}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Info text */}
+      <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, padding: "8px 0" }}>
+        <Package size={12} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
+        Click <strong>Check for Updates</strong> to scan for outdated npm packages.
+        {" "}Packages flagged with ⚠ have a major version update available.
+      </div>
+    </div>
+  );
+}
+
 function InfoCard({ children }: { children: React.ReactNode }) {
   return (
     <div

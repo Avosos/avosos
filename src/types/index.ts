@@ -365,6 +365,9 @@ declare global {
       removeUser: (userId: string) => Promise<boolean>;
       updateUserRole: (userId: string, role: import("@/types").UserRole) => Promise<boolean>;
 
+      // Updates
+      checkForUpdates: () => Promise<{ appId?: string; updateAvailable: boolean; currentVersion: string }>;
+
       // Dependency management
       checkOutdated: (appPath: string) => Promise<OutdatedResult>;
       updateDeps: (appId: string, appPath: string) => Promise<{ success: boolean; output?: string; error?: string }>;
