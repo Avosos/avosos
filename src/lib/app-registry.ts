@@ -701,6 +701,7 @@ export const CATEGORY_META: Record<
   productivity: { label: "Productivity", color: "#2dd4bf", icon: "Layout" },
   writing: { label: "Writing", color: "#a3e635", icon: "PenTool" },
   ai: { label: "AI", color: "#ec4899", icon: "Sparkles" },
+  social: { label: "Social", color: "#06b6d4", icon: "MessageCircle" },
 };
 
 export function getAppById(id: string): AppDefinition | undefined {
