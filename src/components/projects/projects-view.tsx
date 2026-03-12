@@ -21,12 +21,14 @@ import {
   Save,
 } from "lucide-react";
 import { useLauncherStore } from "@/stores/launcher-store";
+import { getTranslations } from "@/lib/i18n";
 import AppIcon from "@/components/icons/app-icon";
 import type { Project } from "@/types";
 
 export default function ProjectsView() {
-  const { projects, apps, addProject, removeProject, updateProject, launchApp, selectApp } =
+  const { projects, apps, addProject, removeProject, updateProject, launchApp, selectApp, language } =
     useLauncherStore();
+  const t = getTranslations(language);
   const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "paused" | "completed" | "archived">("all");
@@ -73,12 +75,12 @@ export default function ProjectsView() {
                 marginBottom: 4,
               }}
             >
-              Projects
+              {t.projects.title}
             </h1>
             <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
-              {projects.length} project{projects.length !== 1 ? "s" : ""}
+              {t.projects.projectCount.replace("{n}", String(projects.length))}
               {" · "}
-              {projects.filter((p) => (p.status ?? "active") === "active").length} active
+              {t.projects.activeCount.replace("{n}", String(projects.filter((p) => (p.status ?? "active") === "active").length))}
             </p>
           </div>
 
@@ -87,7 +89,7 @@ export default function ProjectsView() {
             onClick={() => setShowCreate(true)}
           >
             <Plus size={14} />
-            New Project
+            {t.projects.newProject}
           </button>
         </div>
 
@@ -106,7 +108,7 @@ export default function ProjectsView() {
             />
             <input
               className="input"
-              placeholder="Search projects…"
+              placeholder={t.projects.searchPlaceholder}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={{ paddingLeft: 36 }}
@@ -122,7 +124,15 @@ export default function ProjectsView() {
               padding: 3,
             }}
           >
-            {(["all", "active", "paused", "completed", "archived"] as const).map((s) => (
+            {(["all", "active", "paused", "completed", "archived"] as const).map((s) => {
+              const filterLabels: Record<string, string> = {
+                all: t.projects.filterAll,
+                active: t.projects.filterActive,
+                paused: t.projects.filterPaused,
+                completed: t.projects.filterCompleted,
+                archived: t.projects.filterArchived,
+              };
+              return (
               <button
                 key={s}
                 onClick={() => setStatusFilter(s)}
@@ -139,9 +149,10 @@ export default function ProjectsView() {
                   transition: "all 0.15s",
                 }}
               >
-                {s}
+                {filterLabels[s]}
               </button>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
@@ -197,17 +208,17 @@ export default function ProjectsView() {
   );
 }
 
-const STATUS_META: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-  active: { label: "Active", color: "var(--success)", icon: Activity },
-  paused: { label: "Paused", color: "var(--warning)", icon: Pause },
-  completed: { label: "Completed", color: "var(--accent)", icon: CheckCircle2 },
-  archived: { label: "Archived", color: "var(--text-dim)", icon: Archive },
+const STATUS_META: Record<string, { color: string; icon: React.ElementType }> = {
+  active: { color: "var(--success)", icon: Activity },
+  paused: { color: "var(--warning)", icon: Pause },
+  completed: { color: "var(--accent)", icon: CheckCircle2 },
+  archived: { color: "var(--text-dim)", icon: Archive },
 };
 
-const PRIORITY_META: Record<string, { label: string; color: string }> = {
-  low: { label: "Low", color: "var(--text-muted)" },
-  medium: { label: "Medium", color: "var(--warning)" },
-  high: { label: "High", color: "var(--error, #ef4444)" },
+const PRIORITY_META: Record<string, { color: string }> = {
+  low: { color: "var(--text-muted)" },
+  medium: { color: "var(--warning)" },
+  high: { color: "var(--error, #ef4444)" },
 };
 
 function ProjectCard({
@@ -231,6 +242,20 @@ function ProjectCard({
 }) {
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesText, setNotesText] = useState(project.notes ?? "");
+  const language = useLauncherStore((s) => s.language);
+  const t = getTranslations(language);
+
+  const statusLabels: Record<string, string> = {
+    active: t.projects.statusActive,
+    paused: t.projects.statusPaused,
+    completed: t.projects.statusCompleted,
+    archived: t.projects.statusArchived,
+  };
+  const priorityLabels: Record<string, string> = {
+    low: t.projects.priorityLow,
+    medium: t.projects.priorityMedium,
+    high: t.projects.priorityHigh,
+  };
 
   const reqApps = project.requiredApps
     .map((ref) => apps.find((a) => a.id === ref.appId))
@@ -276,7 +301,7 @@ function ProjectCard({
                 }}
               >
                 <StatusIcon size={10} />
-                {statusMeta.label}
+                {statusLabels[status] ?? status}
               </span>
               {priorityMeta && (
                 <span
@@ -290,7 +315,7 @@ function ProjectCard({
                   }}
                 >
                   <Flag size={10} />
-                  {priorityMeta.label}
+                  {priorityLabels[project.priority!] ?? project.priority}
                 </span>
               )}
             </div>
@@ -357,7 +382,7 @@ function ProjectCard({
           {/* Status + priority controls */}
           <div style={{ display: "flex", gap: 12, padding: "12px 20px", borderBottom: "1px solid var(--border-subtle)", flexWrap: "wrap" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)" }}>Status:</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)" }}>{t.projects.statusLabel}</span>
               <select
                 value={status}
                 onChange={(e) => onUpdate({ status: e.target.value as Project["status"] })}
@@ -372,14 +397,14 @@ function ProjectCard({
                   cursor: "pointer",
                 }}
               >
-                <option value="active">Active</option>
-                <option value="paused">Paused</option>
-                <option value="completed">Completed</option>
-                <option value="archived">Archived</option>
+                <option value="active">{t.projects.statusActive}</option>
+                <option value="paused">{t.projects.statusPaused}</option>
+                <option value="completed">{t.projects.statusCompleted}</option>
+                <option value="archived">{t.projects.statusArchived}</option>
               </select>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)" }}>Priority:</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)" }}>{t.projects.priorityLabel}</span>
               <select
                 value={project.priority ?? "medium"}
                 onChange={(e) => onUpdate({ priority: e.target.value as Project["priority"] })}
@@ -394,13 +419,13 @@ function ProjectCard({
                   cursor: "pointer",
                 }}
               >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
+                <option value="low">{t.projects.priorityLow}</option>
+                <option value="medium">{t.projects.priorityMedium}</option>
+                <option value="high">{t.projects.priorityHigh}</option>
               </select>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)" }}>Deadline:</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)" }}>{t.projects.deadlineLabel}</span>
               <input
                 type="date"
                 value={project.deadline ? new Date(project.deadline).toISOString().split("T")[0] : ""}
@@ -421,7 +446,7 @@ function ProjectCard({
                 style={{ fontSize: 11, padding: "4px 8px", marginLeft: "auto" }}
                 onClick={() => window.electronAPI?.openPath(project.path!)}
               >
-                <FolderOpen size={11} /> Open Folder
+                <FolderOpen size={11} /> {t.projects.openFolder}
               </button>
             )}
           </div>
@@ -430,7 +455,7 @@ function ProjectCard({
           {reqApps.length > 0 && (
             <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--border-subtle)" }}>
               <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
-                Toolchain
+                {t.projects.toolchain}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {reqApps.map((app) => (
@@ -453,7 +478,7 @@ function ProjectCard({
                       style={{ padding: "4px 8px", fontSize: 11 }}
                       onClick={() => onLaunchApp(app!.id)}
                     >
-                      <Play size={10} fill="currentColor" /> Launch
+                      <Play size={10} fill="currentColor" /> {t.store.launch}
                     </button>
                   </div>
                 ))}
@@ -465,7 +490,7 @@ function ProjectCard({
           <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--border-subtle)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
               <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: 4 }}>
-                <FileText size={11} /> Notes
+                <FileText size={11} /> {t.projects.notesSection}
               </div>
               <button
                 className="btn-ghost"
@@ -477,14 +502,14 @@ function ProjectCard({
                   setEditingNotes(!editingNotes);
                 }}
               >
-                {editingNotes ? <><Save size={10} /> Save</> : <><Edit3 size={10} /> Edit</>}
+                {editingNotes ? <><Save size={10} /> {t.projects.save}</> : <><Edit3 size={10} /> {t.projects.edit}</>}
               </button>
             </div>
             {editingNotes ? (
               <textarea
                 value={notesText}
                 onChange={(e) => setNotesText(e.target.value)}
-                placeholder="Add notes about this project…"
+                placeholder={t.projects.notesPlaceholder}
                 style={{
                   width: "100%",
                   minHeight: 80,
@@ -500,7 +525,7 @@ function ProjectCard({
               />
             ) : (
               <p style={{ fontSize: 12, color: project.notes ? "var(--text-secondary)" : "var(--text-dim)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
-                {project.notes || "No notes yet. Click Edit to add some."}
+                {project.notes || t.projects.noNotes}
               </p>
             )}
           </div>
@@ -509,7 +534,7 @@ function ProjectCard({
           {project.activity && project.activity.length > 0 && (
             <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--border-subtle)" }}>
               <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8, display: "flex", alignItems: "center", gap: 4 }}>
-                <Activity size={11} /> Recent Activity
+                <Activity size={11} /> {t.projects.recentActivity}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {project.activity.slice(0, 5).map((act) => (
@@ -517,7 +542,7 @@ function ProjectCard({
                     <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)", flexShrink: 0 }} />
                     <span style={{ flex: 1 }}>{act.message}</span>
                     <span style={{ color: "var(--text-dim)", fontSize: 10, whiteSpace: "nowrap" }}>
-                      {formatRelative(act.timestamp)}
+                      {formatRelative(act.timestamp, t.projects)}
                     </span>
                   </div>
                 ))}
@@ -531,10 +556,10 @@ function ProjectCard({
               className="btn-ghost"
               style={{ fontSize: 11, color: "var(--error, #ef4444)", padding: "4px 8px" }}
               onClick={() => {
-                if (confirm(`Delete project "${project.name}"?`)) onRemove();
+                if (confirm(t.projects.deleteConfirm.replace("{name}", project.name))) onRemove();
               }}
             >
-              <Trash2 size={12} /> Delete
+              <Trash2 size={12} /> {t.projects.deleteBtn}
             </button>
             <button
               className="btn-primary"
@@ -543,7 +568,7 @@ function ProjectCard({
                 project.requiredApps.forEach((ref) => onLaunchApp(ref.appId));
               }}
             >
-              <Play size={11} fill="white" /> Open Project
+              <Play size={11} fill="white" /> {t.projects.openProject}
             </button>
           </div>
         </div>
@@ -552,18 +577,20 @@ function ProjectCard({
   );
 }
 
-function formatRelative(ts: number): string {
+function formatRelative(ts: number, pt?: { justNow: string; minutesAgo: string; hoursAgo: string; daysAgo: string }): string {
   const diff = Date.now() - ts;
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return pt?.justNow ?? "just now";
+  if (mins < 60) return (pt?.minutesAgo ?? "{n}m ago").replace("{n}", String(mins));
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
+  if (hrs < 24) return (pt?.hoursAgo ?? "{n}h ago").replace("{n}", String(hrs));
   const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
+  return (pt?.daysAgo ?? "{n}d ago").replace("{n}", String(days));
 }
 
 function EmptyProjects({ onCreateClick }: { onCreateClick: () => void }) {
+  const language = useLauncherStore((s) => s.language);
+  const t = getTranslations(language);
   return (
     <div
       style={{
@@ -596,7 +623,7 @@ function EmptyProjects({ onCreateClick }: { onCreateClick: () => void }) {
           marginBottom: 8,
         }}
       >
-        No projects yet
+        {t.projects.emptyTitle}
       </h3>
       <p
         style={{
@@ -608,12 +635,11 @@ function EmptyProjects({ onCreateClick }: { onCreateClick: () => void }) {
           lineHeight: 1.6,
         }}
       >
-        Projects group your applications, versions, and settings together.
-        Create your first project to get started.
+        {t.projects.emptyDesc}
       </p>
       <button className="btn-primary" onClick={onCreateClick}>
         <Plus size={14} />
-        Create Project
+        {t.projects.createProject}
       </button>
     </div>
   );
@@ -628,6 +654,8 @@ function CreateProjectModal({
   onClose: () => void;
   onCreate: (data: Omit<Project, "id" | "createdAt" | "updatedAt">) => void;
 }) {
+  const language = useLauncherStore((s) => s.language);
+  const t = getTranslations(language);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedApps, setSelectedApps] = useState<string[]>([]);
@@ -680,7 +708,7 @@ function CreateProjectModal({
             marginBottom: 20,
           }}
         >
-          <h2 style={{ fontSize: 18, fontWeight: 700 }}>Create Project</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 700 }}>{t.projects.modalTitle}</h2>
           <button className="btn-ghost" onClick={onClose} style={{ padding: 6 }}>
             <X size={16} />
           </button>
@@ -698,11 +726,11 @@ function CreateProjectModal({
                 marginBottom: 6,
               }}
             >
-              Project Name *
+              {t.projects.projectName}
             </label>
             <input
               className="input"
-              placeholder="My Video Project"
+              placeholder={t.projects.projectNamePlaceholder}
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoFocus
@@ -720,11 +748,11 @@ function CreateProjectModal({
                 marginBottom: 6,
               }}
             >
-              Description
+              {t.projects.description}
             </label>
             <textarea
               className="input"
-              placeholder="What is this project about?"
+              placeholder={t.projects.descriptionPlaceholder}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
@@ -743,7 +771,7 @@ function CreateProjectModal({
                 marginBottom: 8,
               }}
             >
-              Required Applications
+              {t.projects.requiredApps}
             </label>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {apps
@@ -837,11 +865,11 @@ function CreateProjectModal({
                 marginBottom: 6,
               }}
             >
-              Tags (comma separated)
+              {t.projects.tagsLabel}
             </label>
             <input
               className="input"
-              placeholder="video, youtube, tutorial"
+              placeholder={t.projects.tagsPlaceholder}
               value={tags}
               onChange={(e) => setTags(e.target.value)}
             />
@@ -851,7 +879,7 @@ function CreateProjectModal({
           <div style={{ display: "flex", gap: 12 }}>
             <div style={{ flex: 1 }}>
               <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
-                Priority
+                {t.projects.priority}
               </label>
               <select
                 value={priority}
@@ -859,14 +887,14 @@ function CreateProjectModal({
                 className="input"
                 style={{ appearance: "none" }}
               >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
+                <option value="low">{t.projects.priorityLow}</option>
+                <option value="medium">{t.projects.priorityMedium}</option>
+                <option value="high">{t.projects.priorityHigh}</option>
               </select>
             </div>
             <div style={{ flex: 1 }}>
               <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
-                Deadline (optional)
+                {t.projects.deadline}
               </label>
               <input
                 type="date"
@@ -880,12 +908,12 @@ function CreateProjectModal({
           {/* Project directory */}
           <div>
             <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: 6 }}>
-              Project Directory (optional)
+              {t.projects.projectDir}
             </label>
             <div style={{ display: "flex", gap: 8 }}>
               <input
                 className="input"
-                placeholder="Select a folder…"
+                placeholder={t.projects.projectDirPlaceholder}
                 value={projectPath}
                 readOnly
                 style={{ flex: 1, cursor: "pointer" }}
@@ -914,7 +942,7 @@ function CreateProjectModal({
           }}
         >
           <button className="btn-secondary" onClick={onClose}>
-            Cancel
+            {t.projects.cancel}
           </button>
           <button
             className="btn-primary"
@@ -942,7 +970,7 @@ function CreateProjectModal({
             }}
           >
             <Plus size={14} />
-            Create Project
+            {t.projects.createBtn}
           </button>
         </div>
       </div>

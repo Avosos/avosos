@@ -3,8 +3,12 @@
 import React, { useState, useEffect } from "react";
 import { Minus, Square, X, Copy } from "lucide-react";
 import NotificationPanel from "./notification-panel";
+import { useLauncherStore } from "@/stores/launcher-store";
+import { getTranslations } from "@/lib/i18n";
 
 export default function Titlebar() {
+  const language = useLauncherStore(s => s.language);
+  const t = getTranslations(language);
   const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => {
@@ -47,7 +51,7 @@ export default function Titlebar() {
             letterSpacing: "0.03em",
           }}
         >
-          AVOSOS
+          {t.titlebar.brand}
         </span>
         <span
           style={{
@@ -58,7 +62,7 @@ export default function Titlebar() {
             textTransform: "uppercase",
           }}
         >
-          Launcher
+          {t.titlebar.subtitle}
         </span>
       </div>
 

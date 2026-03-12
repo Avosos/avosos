@@ -17,6 +17,7 @@ import {
   Loader,
 } from "lucide-react";
 import { useLauncherStore } from "@/stores/launcher-store";
+import { getTranslations } from "@/lib/i18n";
 import { CATEGORY_META } from "@/lib/app-registry";
 import AppIcon from "@/components/icons/app-icon";
 
@@ -34,7 +35,9 @@ export default function DashboardView() {
     installApp,
     stopApp,
     setView,
+    language,
   } = useLauncherStore();
+  const t = getTranslations(language);
 
   const activeProfile = profiles.find((p) => p.id === activeProfileId);
   const recentApps = [...apps]
@@ -53,14 +56,14 @@ export default function DashboardView() {
   const diskUsedPct = diskInfo ? Math.round(((diskInfo.total - diskInfo.free) / diskInfo.total) * 100) : 0;
   const diskDetail = diskInfo
     ? `${formatBytes(diskInfo.total - diskInfo.free)} / ${formatBytes(diskInfo.total)}`
-    : "detecting…";
+    : t.dashboard.detecting;
 
   // Update status – derive from apps instead of hardcoded
   const outdatedApps = apps.filter((a) => a.installed && a.updateAvailable);
   const updateText =
     outdatedApps.length === 0
-      ? "All applications are up to date."
-      : `${outdatedApps.length} app${outdatedApps.length > 1 ? "s" : ""} can be updated.`;
+      ? t.dashboard.allUpToDate
+      : t.dashboard.updatesAvailable.replace("{n}", String(outdatedApps.length));
 
   return (
     <div
@@ -106,13 +109,12 @@ export default function DashboardView() {
                 marginBottom: 6,
                 color: "var(--text-primary)",
               }}
-            >
-              Welcome back
+            >              {t.dashboard.welcome}
             </h1>
             <p style={{ fontSize: 14, color: "var(--text-secondary)", maxWidth: 480 }}>
               {activeProfile ? (
                 <>
-                  Active profile:{" "}
+                  {t.dashboard.activeProfile}{" "}
                   <span style={{ color: activeProfile.color, fontWeight: 600 }}>
                     {activeProfile.name}
                   </span>
@@ -120,7 +122,7 @@ export default function DashboardView() {
                   {activeProfile.description}
                 </>
               ) : (
-                "Your professional workspace is ready. Launch apps, manage projects, and orchestrate your workflow."
+                t.dashboard.subtitle
               )}
             </p>
           </div>
@@ -131,7 +133,7 @@ export default function DashboardView() {
               onClick={() => setView("library")}
             >
               <Zap size={14} />
-              Quick Launch
+              {t.dashboard.quickLaunch}
             </button>
           </div>
         </div>
@@ -146,10 +148,10 @@ export default function DashboardView() {
             borderTop: "1px solid var(--border-subtle)",
           }}
         >
-          <QuickStat label="Installed Apps" value={apps.filter((a) => a.installed).length} />
-          <QuickStat label="Running" value={runningApps.length} color="var(--success)" />
-          <QuickStat label="Projects" value={projects.length} />
-          <QuickStat label="Profiles" value={profiles.length} />
+          <QuickStat label={t.dashboard.installedApps} value={apps.filter((a) => a.installed).length} />
+          <QuickStat label={t.dashboard.running} value={runningApps.length} color="var(--success)" />
+          <QuickStat label={t.dashboard.projects} value={projects.length} />
+          <QuickStat label={t.dashboard.profiles} value={profiles.length} />
         </div>
       </div>
 
@@ -165,9 +167,9 @@ export default function DashboardView() {
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           {/* Installed Applications */}
           <DashboardSection
-            title="Applications"
-            subtitle="All registered applications"
-            action={{ label: "View Library", onClick: () => setView("library") }}
+            title={t.dashboard.applications}
+            subtitle={t.dashboard.allRegistered}
+            action={{ label: t.dashboard.viewLibrary, onClick: () => setView("library") }}
           >
             <div
               style={{
@@ -213,7 +215,7 @@ export default function DashboardView() {
               >
                 <span style={{ fontSize: 24, color: "var(--text-muted)" }}>+</span>
                 <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>
-                  Add Application
+                  {t.dashboard.addApplication}
                 </span>
               </div>
             </div>
@@ -221,7 +223,7 @@ export default function DashboardView() {
 
           {/* Recent activity */}
           {recentApps.length > 0 && (
-            <DashboardSection title="Recent Activity" subtitle="Recently used tools">
+            <DashboardSection title={t.dashboard.recentActivity} subtitle={t.dashboard.recentlyUsedTools}>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {recentApps.map((app) => (
                   <div
@@ -240,7 +242,7 @@ export default function DashboardView() {
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 13, fontWeight: 600 }}>{app.name}</div>
                       <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                        Last used {formatRelativeTime(app.lastLaunched!)}
+                        {t.dashboard.lastUsed.replace("{time}", formatRelativeTime(app.lastLaunched!, t))}
                       </div>
                     </div>
                     <Clock size={14} style={{ color: "var(--text-muted)" }} />
@@ -276,7 +278,7 @@ export default function DashboardView() {
                   color: "var(--text-primary)",
                 }}
               >
-                System Monitor
+                {t.dashboard.systemMonitor}
               </span>
             </div>
 
@@ -284,7 +286,7 @@ export default function DashboardView() {
               {/* CPU */}
               <SystemStatBar
                 icon={<Cpu size={14} />}
-                label="CPU"
+                label={t.dashboard.cpuLabel}
                 value={systemStats?.cpuUsage ?? 0}
                 detail={systemInfo?.cpu ?? "—"}
                 color="var(--accent)"
@@ -293,7 +295,7 @@ export default function DashboardView() {
               {/* RAM */}
               <SystemStatBar
                 icon={<MemoryStick size={14} />}
-                label="Memory"
+                label={t.dashboard.memoryLabel}
                 value={systemStats?.memoryUsage ?? 0}
                 detail={
                   systemInfo
@@ -308,16 +310,16 @@ export default function DashboardView() {
               {/* GPU */}
               <SystemStatBar
                 icon={<MonitorSpeaker size={14} />}
-                label="GPU"
+                label={t.dashboard.gpuLabel}
                 value={0}
-                detail={gpuInfo?.name ?? "N/A"}
+                detail={gpuInfo?.name ?? t.dashboard.na}
                 color="var(--warning)"
               />
 
               {/* Disk */}
               <SystemStatBar
                 icon={<HardDrive size={14} />}
-                label="Disk"
+                label={t.dashboard.diskLabel}
                 value={diskUsedPct}
                 detail={diskDetail}
                 color="var(--success)"
@@ -355,7 +357,7 @@ export default function DashboardView() {
                     color: "var(--text-primary)",
                   }}
                 >
-                  Active Profile
+                  {t.dashboard.activeProfileSection}
                 </span>
               </div>
 
@@ -372,7 +374,7 @@ export default function DashboardView() {
                 {activeProfile.description}
               </div>
               <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                {activeProfile.apps.length} app(s) configured
+                {t.dashboard.appsConfigured.replace("{n}", String(activeProfile.apps.length))}
               </div>
 
               <button
@@ -380,7 +382,7 @@ export default function DashboardView() {
                 style={{ marginTop: 8, fontSize: 12, padding: "6px 0" }}
                 onClick={() => setView("store")}
               >
-                Manage Store <ArrowRight size={12} />
+                {t.dashboard.manageStore} <ArrowRight size={12} />
               </button>
             </div>
           )}
@@ -406,7 +408,7 @@ export default function DashboardView() {
                   color: "var(--text-primary)",
                 }}
               >
-                Updates
+                {t.dashboard.updates}
               </span>
             </div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
@@ -486,6 +488,8 @@ function AppQuickCard({
   onStop: () => void;
   onDetails: () => void;
 }) {
+  const language = useLauncherStore(s => s.language);
+  const t = getTranslations(language);
   const catMeta = CATEGORY_META[app.category];
 
   return (
@@ -589,7 +593,7 @@ function AppQuickCard({
             onStop();
           }}
         >
-          <Square size={13} fill="white" /> Stop
+          <Square size={13} fill="white" /> {t.dashboard.stop}
         </button>
       ) : (
         <button
@@ -607,15 +611,15 @@ function AppQuickCard({
           }}
         >
           {app.installing ? (
-            <><Download size={13} /> Installing…</>
+            <><Download size={13} /> {t.dashboard.installing}</>
           ) : app.isLaunching ? (
-            <><Loader size={13} style={{ animation: "spin 1s linear infinite" }} /> Starting…</>
+            <><Loader size={13} style={{ animation: "spin 1s linear infinite" }} /> {t.dashboard.starting}</>
           ) : app.uninstalling ? (
-            <><Loader size={13} style={{ animation: "spin 1s linear infinite" }} /> Removing…</>
+            <><Loader size={13} style={{ animation: "spin 1s linear infinite" }} /> {t.dashboard.removing}</>
           ) : !app.installed ? (
-            <><Download size={13} /> Install</>
+            <><Download size={13} /> {t.dashboard.install}</>
           ) : (
-            <><Play size={13} fill="white" /> Launch</>
+            <><Play size={13} fill="white" /> {t.dashboard.launch}</>
           )}
         </button>
       )}
@@ -721,13 +725,14 @@ function formatBytes(bytes: number): string {
   return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
 }
 
-function formatRelativeTime(timestamp: number): string {
+function formatRelativeTime(timestamp: number, t?: ReturnType<typeof getTranslations>): string {
   const diff = Date.now() - timestamp;
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  const nt = t?.notifications;
+  if (mins < 1) return nt?.justNow ?? "just now";
+  if (mins < 60) return nt?.minutesAgo.replace("{n}", String(mins)) ?? `${mins}m ago`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
+  if (hrs < 24) return nt?.hoursAgo.replace("{n}", String(hrs)) ?? `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
+  return nt?.daysAgo.replace("{n}", String(days)) ?? `${days}d ago`;
 }

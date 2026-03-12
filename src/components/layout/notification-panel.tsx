@@ -12,6 +12,7 @@ import {
   Key,
 } from "lucide-react";
 import { useLauncherStore } from "@/stores/launcher-store";
+import { getTranslations } from "@/lib/i18n";
 import type { LauncherNotification } from "@/types";
 
 export default function NotificationPanel() {
@@ -20,7 +21,9 @@ export default function NotificationPanel() {
     dismissNotification,
     markNotificationRead,
     clearAllNotifications,
+    language,
   } = useLauncherStore();
+  const t = getTranslations(language);
   const [open, setOpen] = useState(false);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -110,7 +113,7 @@ export default function NotificationPanel() {
               justifyContent: "space-between",
             }}
           >
-            <span style={{ fontSize: 14, fontWeight: 700 }}>Notifications</span>
+            <span style={{ fontSize: 14, fontWeight: 700 }}>{t.notifications.title}</span>
             <div style={{ display: "flex", gap: 6 }}>
               {notifications.length > 0 && (
                 <button
@@ -124,7 +127,7 @@ export default function NotificationPanel() {
                     fontWeight: 500,
                   }}
                 >
-                  Clear all
+                  {t.notifications.clearAll}
                 </button>
               )}
               <button
@@ -171,7 +174,7 @@ export default function NotificationPanel() {
                   fontSize: 13,
                 }}
               >
-                No notifications
+                {t.notifications.empty}
               </div>
             ) : (
               regularNotifs.map((n) => (
@@ -361,8 +364,10 @@ function NotificationItem({
   notification: LauncherNotification;
   onDismiss: () => void;
 }) {
+  const language = useLauncherStore(s => s.language);
+  const t = getTranslations(language);
   const typeIcon = getTypeIcon(n.type);
-  const ago = formatTimeAgo(n.timestamp);
+  const ago = formatTimeAgo(n.timestamp, t.notifications);
 
   return (
     <div
@@ -423,12 +428,12 @@ function getTypeColor(type: LauncherNotification["type"]) {
   }
 }
 
-function formatTimeAgo(ts: number) {
+function formatTimeAgo(ts: number, nt: ReturnType<typeof getTranslations>["notifications"]) {
   const diff = Date.now() - ts;
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return nt.justNow;
+  if (mins < 60) return nt.minutesAgo.replace("{n}", String(mins));
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
+  if (hrs < 24) return nt.hoursAgo.replace("{n}", String(hrs));
+  return nt.daysAgo.replace("{n}", String(Math.floor(hrs / 24)));
 }

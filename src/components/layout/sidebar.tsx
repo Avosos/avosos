@@ -13,21 +13,26 @@ import {
 } from "lucide-react";
 import type { NavView } from "@/types";
 import { useLauncherStore } from "@/stores/launcher-store";
+import { getTranslations } from "@/lib/i18n";
 
-const NAV_ITEMS: { id: NavView; label: string; icon: React.ElementType }[] = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "library", label: "Library", icon: Library },
-  { id: "projects", label: "Projects", icon: FolderKanban },
-  { id: "store", label: "Store", icon: Store },
-  { id: "settings", label: "Settings", icon: Settings },
+const NAV_ICONS: { id: NavView; icon: React.ElementType }[] = [
+  { id: "dashboard", icon: LayoutDashboard },
+  { id: "library", icon: Library },
+  { id: "projects", icon: FolderKanban },
+  { id: "store", icon: Store },
+  { id: "settings", icon: Settings },
 ];
 
-const ADMIN_ITEM: { id: NavView; label: string; icon: React.ElementType } = 
-  { id: "admin", label: "Admin", icon: Shield };
-
 export default function Sidebar() {
-  const { currentView, setView, runningApps, systemStats } =
+  const { currentView, setView, runningApps, systemStats, language } =
     useLauncherStore();
+  const t = getTranslations(language);
+
+  const NAV_ITEMS = NAV_ICONS.map((item) => ({
+    ...item,
+    label: (t.sidebar as Record<string, string>)[item.id] ?? item.id,
+  }));
+  const ADMIN_ITEM = { id: "admin" as NavView, label: t.sidebar.admin, icon: Shield };
 
   return (
     <aside
@@ -61,7 +66,7 @@ export default function Sidebar() {
             padding: "0 12px 8px",
           }}
         >
-          Navigation
+          {t.sidebar.navigation}
         </div>
         {NAV_ITEMS.map((item) => {
           const active = currentView === item.id || 
@@ -149,7 +154,7 @@ export default function Sidebar() {
             padding: "0 12px 4px",
           }}
         >
-          System
+          {t.sidebar.system}
         </div>
         {(() => {
           const active = currentView === "admin";
@@ -233,19 +238,19 @@ export default function Sidebar() {
               letterSpacing: "0.08em",
             }}
           >
-            System
+            {t.sidebar.system}
           </span>
         </div>
 
         {systemStats ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <MiniStat
-              label="CPU"
+              label={t.sidebar.cpu}
               value={systemStats.cpuUsage}
               color="var(--accent)"
             />
             <MiniStat
-              label="RAM"
+              label={t.sidebar.ram}
               value={systemStats.memoryUsage}
               color="var(--info)"
             />
@@ -254,7 +259,7 @@ export default function Sidebar() {
           <div
             style={{ fontSize: 11, color: "var(--text-dim)" }}
           >
-            Connecting…
+            {t.sidebar.connecting}
           </div>
         )}
       </div>
@@ -272,7 +277,7 @@ export default function Sidebar() {
       >
         v0.1.0
         <ChevronRight size={10} />
-        <span style={{ color: "var(--text-muted)" }}>alpha</span>
+        <span style={{ color: "var(--text-muted)" }}>{t.sidebar.alpha}</span>
       </div>
     </aside>
   );

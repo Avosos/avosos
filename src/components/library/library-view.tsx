@@ -15,6 +15,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useLauncherStore } from "@/stores/launcher-store";
+import { getTranslations } from "@/lib/i18n";
 import { CATEGORY_META } from "@/lib/app-registry";
 import AppIcon from "@/components/icons/app-icon";
 import type { AppDefinition, AppCategory } from "@/types";
@@ -23,8 +24,9 @@ type ViewMode = "grid" | "list";
 type FilterCategory = "all" | AppCategory;
 
 export default function LibraryView() {
-  const { apps, selectApp, launchApp, installApp, stopApp, uninstallApp, searchQuery, setSearchQuery } =
+  const { apps, selectApp, launchApp, installApp, stopApp, uninstallApp, searchQuery, setSearchQuery, language } =
     useLauncherStore();
+  const t = getTranslations(language);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [filterCategory, setFilterCategory] = useState<FilterCategory>("all");
   const [filterState, setFilterState] = useState<"all" | "installed" | "available">("all");
@@ -91,12 +93,12 @@ export default function LibraryView() {
                 marginBottom: 4,
               }}
             >
-              Library
+              {t.library.title}
             </h1>
             <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
-              {apps.length} application{apps.length !== 1 ? "s" : ""} registered
+              {t.library.appsRegistered.replace("{n}", String(apps.length))}
               {" · "}
-              {apps.filter((a) => a.installed).length} installed
+              {apps.filter((a) => a.installed).length} {t.library.installed}
             </p>
           </div>
 
@@ -148,7 +150,7 @@ export default function LibraryView() {
             />
             <input
               className="input"
-              placeholder="Search applications…"
+              placeholder={t.library.searchPlaceholder}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{ paddingLeft: 36 }}
@@ -173,7 +175,7 @@ export default function LibraryView() {
                 cursor: "pointer",
               }}
             >
-              <option value="all">All Categories</option>
+              <option value="all">{t.library.allCategories}</option>
               {categories.map((cat) => (
                 <option key={cat} value={cat}>
                   {CATEGORY_META[cat]?.label ?? cat}
@@ -203,7 +205,9 @@ export default function LibraryView() {
               padding: 3,
             }}
           >
-            {(["all", "installed", "available"] as const).map((s) => (
+            {(["all", "installed", "available"] as const).map((s) => {
+              const label = s === "all" ? t.library.filterAll : s === "installed" ? t.library.filterInstalled : t.library.filterAvailable;
+              return (
               <button
                 key={s}
                 onClick={() => setFilterState(s)}
@@ -226,9 +230,10 @@ export default function LibraryView() {
                   transition: "all 0.15s",
                 }}
               >
-                {s}
+                {label}
               </button>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
@@ -296,6 +301,8 @@ function GridCard({
   onUninstall: () => void;
   onDetails: () => void;
 }) {
+  const language = useLauncherStore(s => s.language);
+  const t = getTranslations(language);
   const catMeta = CATEGORY_META[app.category];
 
   return (
@@ -340,7 +347,7 @@ function GridCard({
             }}
           >
             <Loader size={10} style={{ animation: "spin 1s linear infinite" }} />
-            Starting…
+            {t.library.badgeStarting}
           </div>
         )}
         {app.isRunning && !app.isLaunching && (
@@ -368,7 +375,7 @@ function GridCard({
                 background: "var(--success)",
               }}
             />
-            Running
+            {t.library.badgeRunning}
           </div>
         )}
         {app.uninstalling && (
@@ -389,7 +396,7 @@ function GridCard({
             }}
           >
             <Loader size={10} style={{ animation: "spin 1s linear infinite" }} />
-            Removing…
+            {t.library.badgeRemoving}
           </div>
         )}
       </div>
@@ -521,7 +528,7 @@ function GridCard({
                 onStop();
               }}
             >
-              <Square size={13} fill="white" /> Stop
+              <Square size={13} fill="white" /> {t.library.stop}
             </button>
           ) : (
             <button
@@ -540,15 +547,15 @@ function GridCard({
               }}
             >
               {app.installing ? (
-                <><Download size={13} /> Installing…</>
+                <><Download size={13} /> {t.library.installing}</>
               ) : app.isLaunching ? (
-                <><Loader size={13} style={{ animation: "spin 1s linear infinite" }} /> Starting…</>
+                <><Loader size={13} style={{ animation: "spin 1s linear infinite" }} /> {t.library.starting}</>
               ) : app.uninstalling ? (
-                <><Loader size={13} style={{ animation: "spin 1s linear infinite" }} /> Removing…</>
+                <><Loader size={13} style={{ animation: "spin 1s linear infinite" }} /> {t.library.removing}</>
               ) : !app.installed ? (
-                <><Download size={13} /> Install</>
+                <><Download size={13} /> {t.library.install}</>
               ) : (
-                <><Play size={13} fill="white" /> Launch</>
+                <><Play size={13} fill="white" /> {t.library.launch}</>
               )}
             </button>
           )}
@@ -556,7 +563,7 @@ function GridCard({
             <button
               className="btn-secondary"
               style={{ padding: "8px 10px", color: "var(--error, #ef4444)" }}
-              title="Uninstall"
+              title={t.library.uninstall}
               onClick={(e) => {
                 e.stopPropagation();
                 onUninstall();
@@ -573,7 +580,7 @@ function GridCard({
               onDetails();
             }}
           >
-            Details
+            {t.library.details}
           </button>
         </div>
       </div>
@@ -595,6 +602,8 @@ function ListRow({
   onUninstall: () => void;
   onDetails: () => void;
 }) {
+  const language = useLauncherStore(s => s.language);
+  const t = getTranslations(language);
   const catMeta = CATEGORY_META[app.category];
 
   return (
@@ -631,7 +640,7 @@ function ListRow({
                 color: "var(--success)",
               }}
             >
-              Running
+              {t.library.badgeRunning}
             </span>
           )}
           {app.isLaunching && !app.isRunning && (
@@ -642,7 +651,7 @@ function ListRow({
                 color: "var(--accent)",
               }}
             >
-              <Loader size={10} style={{ animation: "spin 1s linear infinite" }} /> Starting…
+              <Loader size={10} style={{ animation: "spin 1s linear infinite" }} /> {t.library.badgeStarting}
             </span>
           )}
           {app.uninstalling && (
@@ -653,7 +662,7 @@ function ListRow({
                 color: "var(--error, #ef4444)",
               }}
             >
-              Removing…
+              {t.library.badgeRemoving}
             </span>
           )}
         </div>
@@ -703,7 +712,7 @@ function ListRow({
               onStop();
             }}
           >
-            <Square size={12} fill="white" /> Stop
+            <Square size={12} fill="white" /> {t.library.stop}
           </button>
         ) : (
           <button
@@ -720,15 +729,15 @@ function ListRow({
             }}
           >
             {app.installing ? (
-              <><Download size={12} /> Installing…</>
+              <><Download size={12} /> {t.library.installing}</>
             ) : app.isLaunching ? (
-              <><Loader size={12} style={{ animation: "spin 1s linear infinite" }} /> Starting…</>
+              <><Loader size={12} style={{ animation: "spin 1s linear infinite" }} /> {t.library.starting}</>
             ) : app.uninstalling ? (
-              <><Loader size={12} style={{ animation: "spin 1s linear infinite" }} /> Removing…</>
+              <><Loader size={12} style={{ animation: "spin 1s linear infinite" }} /> {t.library.removing}</>
             ) : !app.installed ? (
-              <><Download size={12} /> Install</>
+              <><Download size={12} /> {t.library.install}</>
             ) : (
-              <><Play size={12} fill="white" /> Launch</>
+              <><Play size={12} fill="white" /> {t.library.launch}</>
             )}
           </button>
         )}
@@ -736,7 +745,7 @@ function ListRow({
           <button
             className="btn-secondary"
             style={{ padding: "6px 10px", color: "var(--error, #ef4444)" }}
-            title="Uninstall"
+            title={t.library.uninstall}
             onClick={(e) => {
               e.stopPropagation();
               onUninstall();
@@ -782,6 +791,8 @@ function ViewToggle({
 }
 
 function EmptyState() {
+  const language = useLauncherStore(s => s.language);
+  const t = getTranslations(language);
   return (
     <div
       style={{
@@ -795,10 +806,10 @@ function EmptyState() {
     >
       <Filter size={40} style={{ marginBottom: 16, opacity: 0.3 }} />
       <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>
-        No applications found
+        {t.library.noAppsFound}
       </div>
       <div style={{ fontSize: 13 }}>
-        Try adjusting your search or filter criteria.
+        {t.library.noAppsHint}
       </div>
     </div>
   );

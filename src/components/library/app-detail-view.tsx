@@ -28,6 +28,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { useLauncherStore } from "@/stores/launcher-store";
+import { getTranslations } from "@/lib/i18n";
 import { CATEGORY_META } from "@/lib/app-registry";
 import AppIcon from "@/components/icons/app-icon";
 import type { AppPlugin, ChangelogEntry } from "@/types";
@@ -35,7 +36,8 @@ import type { AppPlugin, ChangelogEntry } from "@/types";
 type DetailTab = "overview" | "versions" | "plugins" | "compatibility" | "changelog";
 
 export default function AppDetailView() {
-  const { selectedAppId, apps, setView, launchApp, installApp, uninstallApp } = useLauncherStore();
+  const { selectedAppId, apps, setView, launchApp, installApp, uninstallApp, language } = useLauncherStore();
+  const t = getTranslations(language);
   const [activeTab, setActiveTab] = useState<DetailTab>("overview");
   const [selectedVersion, setSelectedVersion] = useState<string | null>(null);
 
@@ -43,7 +45,7 @@ export default function AppDetailView() {
   if (!app) {
     return (
       <div style={{ padding: 32, color: "var(--text-muted)" }}>
-        Application not found.
+        {t.appDetail.notFound}
       </div>
     );
   }
@@ -85,7 +87,7 @@ export default function AppDetailView() {
             }}
           >
             <ArrowLeft size={14} />
-            Back to Library
+            {t.appDetail.backToLibrary}
           </button>
 
           <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
@@ -152,7 +154,7 @@ export default function AppDetailView() {
                   {catMeta?.label}
                 </span>
                 <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                  by {app.vendor}
+                  {t.appDetail.byVendor.replace("{vendor}", app.vendor)}
                 </span>
                 <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
                   · v{app.version}
@@ -205,11 +207,11 @@ export default function AppDetailView() {
                 }}
               >
                 {app.installing ? (
-                  <><Download size={15} /> Installing…</>
+                  <><Download size={15} /> {t.appDetail.installing}</>
                 ) : !app.installed ? (
-                  <><Download size={15} /> Install</>
+                  <><Download size={15} /> {t.appDetail.install}</>
                 ) : (
-                  <><Play size={15} fill="white" /> {app.isRunning ? "Running" : "Launch"}</>
+                  <><Play size={15} fill="white" /> {app.isRunning ? t.appDetail.runningBtn : t.appDetail.launch}</>
                 )}
               </button>
 
@@ -241,7 +243,7 @@ export default function AppDetailView() {
                   }
                 >
                   <ExternalLink size={13} />
-                  GitHub
+                  {t.appDetail.github}
                 </button>
               )}
 
@@ -254,7 +256,7 @@ export default function AppDetailView() {
                   }
                 >
                   <FolderOpen size={13} />
-                  Open Source
+                  {t.appDetail.openSource}
                 </button>
               )}
 
@@ -268,13 +270,13 @@ export default function AppDetailView() {
                     borderColor: "var(--error-muted)",
                   }}
                   onClick={() => {
-                    if (confirm(`Uninstall ${app.name}? This will delete all local files.`)) {
+                    if (confirm(t.appDetail.uninstallConfirm.replace("{name}", app.name))) {
                       uninstallApp(app.id);
                     }
                   }}
                 >
                   <Trash2 size={13} />
-                  Uninstall
+                  {t.appDetail.uninstall}
                 </button>
               )}
             </div>
@@ -293,11 +295,11 @@ export default function AppDetailView() {
         >
           {(
             [
-              { id: "overview", label: "Overview", icon: Package },
-              { id: "changelog", label: "Changelog", icon: History },
-              { id: "versions", label: "Versions", icon: GitBranch },
-              { id: "plugins", label: "Plugins", icon: Puzzle },
-              { id: "compatibility", label: "Compatibility", icon: Shield },
+              { id: "overview", label: t.appDetail.tabOverview, icon: Package },
+              { id: "changelog", label: t.appDetail.tabChangelog, icon: History },
+              { id: "versions", label: t.appDetail.tabVersions, icon: GitBranch },
+              { id: "plugins", label: t.appDetail.tabPlugins, icon: Puzzle },
+              { id: "compatibility", label: t.appDetail.tabCompatibility, icon: Shield },
             ] as const
           ).map((tab) => {
             const active = activeTab === tab.id;
@@ -384,6 +386,8 @@ export default function AppDetailView() {
 
 /* ─── Overview Tab ─────────────────────────────────────── */
 function OverviewTab({ app }: { app: import("@/types").AppDefinition }) {
+  const language = useLauncherStore(s => s.language);
+  const t = getTranslations(language);
   return (
     <div
       style={{
@@ -394,7 +398,7 @@ function OverviewTab({ app }: { app: import("@/types").AppDefinition }) {
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         {/* Description */}
-        <DetailSection title="About">
+        <DetailSection title={t.appDetail.about}>
           <p
             style={{
               fontSize: 13,
@@ -407,7 +411,7 @@ function OverviewTab({ app }: { app: import("@/types").AppDefinition }) {
         </DetailSection>
 
         {/* Tags */}
-        <DetailSection title="Tags">
+        <DetailSection title={t.appDetail.tags}>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {app.tags.map((tag) => (
               <span
@@ -428,7 +432,7 @@ function OverviewTab({ app }: { app: import("@/types").AppDefinition }) {
 
         {/* Plugins summary */}
         {app.plugins && app.plugins.length > 0 && (
-          <DetailSection title="Installed Plugins">
+          <DetailSection title={t.appDetail.installedPlugins}>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {app.plugins
                 .filter((p) => p.installed)
@@ -470,11 +474,11 @@ function OverviewTab({ app }: { app: import("@/types").AppDefinition }) {
       {/* Sidebar info */}
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <InfoCard>
-          <InfoRow icon={<Package size={13} />} label="Version" value={app.version} />
-          <InfoRow icon={<HardDrive size={13} />} label="Size" value={app.size ?? "—"} />
+          <InfoRow icon={<Package size={13} />} label={t.appDetail.version} value={app.version} />
+          <InfoRow icon={<HardDrive size={13} />} label={t.appDetail.size} value={app.size ?? "—"} />
           <InfoRow
             icon={<Clock size={13} />}
-            label="Updated"
+            label={t.appDetail.updated}
             value={
               app.lastUpdated
                 ? new Date(app.lastUpdated).toLocaleDateString()
@@ -483,31 +487,31 @@ function OverviewTab({ app }: { app: import("@/types").AppDefinition }) {
           />
           <InfoRow
             icon={<GitBranch size={13} />}
-            label="Versions"
-            value={`${app.availableVersions.length} available`}
+            label={t.appDetail.tabVersions}
+            value={t.appDetail.versionsAvailable.replace("{n}", String(app.availableVersions.length))}
           />
           <InfoRow
             icon={<Puzzle size={13} />}
-            label="Plugins"
-            value={`${app.plugins?.length ?? 0} total`}
+            label={t.appDetail.tabPlugins}
+            value={t.appDetail.pluginsTotal.replace("{n}", String(app.plugins?.length ?? 0))}
           />
         </InfoCard>
 
         <InfoCard>
           <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>
-            Update Settings
+            {t.appDetail.updateSettings}
           </div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>Auto-update</span>
+            <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{t.appDetail.autoUpdate}</span>
             <span
               style={{
                 fontSize: 11,
                 fontWeight: 600,
                 color: "var(--text-muted)",
               }}
-              title="Auto-update coming soon"
+              title={t.appDetail.comingSoon}
             >
-              Coming Soon
+              {t.appDetail.comingSoon}
             </span>
           </div>
         </InfoCard>
@@ -515,7 +519,7 @@ function OverviewTab({ app }: { app: import("@/types").AppDefinition }) {
         {app.sourcePath && (
           <InfoCard>
             <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>
-              Source Location
+              {t.appDetail.sourceLocation}
             </div>
             <div
               style={{
@@ -552,6 +556,14 @@ const COMMIT_TYPE_CONFIG: Record<string, { label: string; color: string; icon: R
 };
 
 function ChangelogTab({ app }: { app: import("@/types").AppDefinition }) {
+  const language = useLauncherStore(s => s.language);
+  const t = getTranslations(language);
+  const commitLabels: Record<string, string> = {
+    feat: t.appDetail.commitFeature, fix: t.appDetail.commitFix, refactor: t.appDetail.commitRefactor,
+    docs: t.appDetail.commitDocs, perf: t.appDetail.commitPerf, chore: t.appDetail.commitChore,
+    style: t.appDetail.commitStyle, test: t.appDetail.commitTest, build: t.appDetail.commitBuild,
+    ci: t.appDetail.commitCI, revert: t.appDetail.commitRevert, other: t.appDetail.commitGeneric,
+  };
   const changelog = app.changelog ?? [];
   const [filter, setFilter] = useState<string | null>(null);
 
@@ -580,21 +592,10 @@ function ChangelogTab({ app }: { app: import("@/types").AppDefinition }) {
     <div>
       <div style={{ marginBottom: 16 }}>
         <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
-          Changelog
+          {t.appDetail.changelogTitle}
         </h3>
         <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
-          Recent changes from the project's git history. Uses{" "}
-          <a
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              window.electronAPI?.openExternal("https://www.conventionalcommits.org");
-            }}
-            style={{ color: "var(--accent)", textDecoration: "none" }}
-          >
-            Conventional Commits
-          </a>{" "}
-          for automatic categorization.
+          {t.appDetail.changelogDesc}
         </p>
       </div>
 
@@ -619,7 +620,7 @@ function ChangelogTab({ app }: { app: import("@/types").AppDefinition }) {
                   style={{ padding: "4px 12px", fontSize: 11 }}
                   onClick={() => setFilter(filter === type ? null : type)}
                 >
-                  {cfg.label} ({count})
+                  {commitLabels[type] ?? t.appDetail.commitGeneric} ({count})
                 </button>
               );
             })}
@@ -635,9 +636,9 @@ function ChangelogTab({ app }: { app: import("@/types").AppDefinition }) {
           }}
         >
           <History size={36} style={{ marginBottom: 12, opacity: 0.3 }} />
-          <div style={{ fontSize: 14, fontWeight: 500 }}>No changelog available</div>
+          <div style={{ fontSize: 14, fontWeight: 500 }}>{t.appDetail.noChangelog}</div>
           <div style={{ fontSize: 12, marginTop: 4 }}>
-            This project may not have a git repository or no commits were found.
+            {t.appDetail.noChangelogHint}
           </div>
         </div>
       ) : (
@@ -702,7 +703,7 @@ function ChangelogTab({ app }: { app: import("@/types").AppDefinition }) {
                         }}
                       >
                         <Icon size={10} />
-                        {cfg.label}
+                        {commitLabels[entry.type] ?? t.appDetail.commitGeneric}
                       </span>
 
                       {/* Message */}
@@ -716,7 +717,7 @@ function ChangelogTab({ app }: { app: import("@/types").AppDefinition }) {
                         >
                           {entry.breaking && (
                             <span style={{ color: "#f43f5e", marginRight: 6 }}>
-                              BREAKING
+                              {t.appDetail.breaking}
                             </span>
                           )}
                           {entry.scope && (
@@ -797,7 +798,8 @@ function VersionsTab({
   selectedVersion: string;
   onSelectVersion: (v: string) => void;
 }) {
-  const { bumpAppVersion, launchApp, installApp } = useLauncherStore();
+  const { bumpAppVersion, launchApp, installApp, language } = useLauncherStore();
+  const t = getTranslations(language);
   const [bumping, setBumping] = useState<string | null>(null);
 
   const handleBump = async (bumpType: "major" | "minor" | "patch" | "auto") => {
@@ -814,10 +816,10 @@ function VersionsTab({
     <div>
       <div style={{ marginBottom: 20 }}>
         <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
-          Version Management
+          {t.appDetail.versionManagement}
         </h3>
         <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
-          Bump, pin, or rollback versions. Changes are applied to the project's source files.
+          {t.appDetail.versionManagementDesc}
         </p>
       </div>
 
@@ -836,11 +838,11 @@ function VersionsTab({
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
               <Tag size={13} style={{ marginRight: 6, verticalAlign: "middle" }} />
-              Bump Version
+              {t.appDetail.bumpVersion}
             </div>
             <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-              Current: <strong style={{ color: "var(--text-primary)" }}>v{app.version}</strong>
-              {" \u2014 "}updates package.json and/or Cargo.toml automatically
+              {t.appDetail.currentLabel} <strong style={{ color: "var(--text-primary)" }}>v{app.version}</strong>
+              {" \u2014 "}{t.appDetail.bumpAutoDesc}
             </div>
           </div>
           <div style={{ display: "flex", gap: 6 }}>
@@ -858,7 +860,7 @@ function VersionsTab({
               disabled={!!bumping}
             >
               <Zap size={11} />
-              {bumping === "auto" ? "Detecting..." : "Auto"}
+              {bumping === "auto" ? t.appDetail.detecting : t.appDetail.bumpAuto}
             </button>
 
             <div style={{ width: 1, background: "var(--border-subtle)", margin: "2px 4px" }} />
@@ -883,7 +885,7 @@ function VersionsTab({
                   disabled={!!bumping}
                 >
                   <ArrowUp size={11} />
-                  {bumping === type ? "Bumping..." : type.charAt(0).toUpperCase() + type.slice(1)}
+                  {bumping === type ? t.appDetail.bumping : ({ patch: t.appDetail.bumpPatch, minor: t.appDetail.bumpMinor, major: t.appDetail.bumpMajor } as Record<string, string>)[type]}
                 </button>
               );
             })}
@@ -939,24 +941,24 @@ function VersionsTab({
                         color: "var(--success)",
                       }}
                     >
-                      Current
+                      {t.appDetail.current}
                     </span>
                   )}
                 </div>
                 <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
-                  {isCurrent ? "Currently installed and active" : "Available for installation"}
+                  {isCurrent ? t.appDetail.currentlyInstalled : t.appDetail.availableForInstall}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 6 }}>
                 {isCurrent ? (
                   <button className="btn-primary" style={{ padding: "6px 14px" }} onClick={() => launchApp(app.id)}>
                     <Play size={12} fill="white" />
-                    Launch
+                    {t.appDetail.launch}
                   </button>
                 ) : (
-                  <button className="btn-secondary" style={{ padding: "6px 14px" }} onClick={() => alert(`Version-specific install not yet supported. Install the latest from the overview tab.`)}>
+                  <button className="btn-secondary" style={{ padding: "6px 14px" }} onClick={() => alert(t.appDetail.versionInstallHint)}>
                     <Download size={12} />
-                    Install
+                    {t.appDetail.install}
                   </button>
                 )}
               </div>
@@ -970,16 +972,18 @@ function VersionsTab({
 
 /* ─── Plugins Tab ──────────────────────────────────────── */
 function PluginsTab({ app }: { app: import("@/types").AppDefinition }) {
+  const language = useLauncherStore(s => s.language);
+  const t = getTranslations(language);
   const plugins = app.plugins ?? [];
 
   return (
     <div>
       <div style={{ marginBottom: 16 }}>
         <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
-          Plugin Management
+          {t.appDetail.pluginManagement}
         </h3>
         <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
-          Install, manage, and configure plugins and extensions for {app.name}.
+          {t.appDetail.pluginManagementDesc.replace("{name}", app.name)}
         </p>
       </div>
 
@@ -992,7 +996,7 @@ function PluginsTab({ app }: { app: import("@/types").AppDefinition }) {
           }}
         >
           <Puzzle size={36} style={{ marginBottom: 12, opacity: 0.3 }} />
-          <div style={{ fontSize: 14, fontWeight: 500 }}>No plugins available</div>
+          <div style={{ fontSize: 14, fontWeight: 500 }}>{t.appDetail.noPlugins}</div>
         </div>
       ) : (
         <div
@@ -1018,6 +1022,8 @@ function PluginCard({
   plugin: AppPlugin;
   appName: string;
 }) {
+  const language = useLauncherStore(s => s.language);
+  const t = getTranslations(language);
   return (
     <div
       className="card"
@@ -1077,17 +1083,17 @@ function PluginCard({
       <button
         className={plugin.installed ? "btn-secondary" : "btn-primary"}
         style={{ width: "100%", justifyContent: "center", padding: "7px 14px" }}
-        onClick={() => alert(`Plugin management for ${appName} coming soon`)}
+        onClick={() => alert(t.appDetail.pluginComingSoon.replace("{name}", appName))}
       >
         {plugin.installed ? (
           <>
             <Settings size={12} />
-            Manage
+            {t.appDetail.manage}
           </>
         ) : (
           <>
             <Download size={12} />
-            Install
+            {t.appDetail.install}
           </>
         )}
       </button>
@@ -1097,16 +1103,18 @@ function PluginCard({
 
 /* ─── Compatibility Tab ────────────────────────────────── */
 function CompatibilityTab({ app }: { app: import("@/types").AppDefinition }) {
+  const language = useLauncherStore(s => s.language);
+  const t = getTranslations(language);
   const entries = app.compatibility ?? [];
 
   return (
     <div>
       <div style={{ marginBottom: 16 }}>
         <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
-          Compatibility Matrix
+          {t.appDetail.compatibilityMatrix}
         </h3>
         <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
-          System requirements and compatibility information.
+          {t.appDetail.compatibilityDesc}
         </p>
       </div>
 
@@ -1118,7 +1126,7 @@ function CompatibilityTab({ app }: { app: import("@/types").AppDefinition }) {
             color: "var(--text-muted)",
           }}
         >
-          No compatibility data available.
+          {t.appDetail.noCompatData}
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -1154,7 +1162,7 @@ function CompatibilityTab({ app }: { app: import("@/types").AppDefinition }) {
                       letterSpacing: "0.05em",
                     }}
                   >
-                    Platforms
+                    {t.appDetail.platforms}
                   </div>
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                     {entry.os.map((os) => (
@@ -1167,7 +1175,7 @@ function CompatibilityTab({ app }: { app: import("@/types").AppDefinition }) {
                           fontSize: 11,
                         }}
                       >
-                        {os === "win32" ? "Windows" : os === "darwin" ? "macOS" : "Linux"}
+                        {os === "win32" ? t.appDetail.windows : os === "darwin" ? t.appDetail.macos : t.appDetail.linux}
                       </span>
                     ))}
                   </div>
@@ -1185,7 +1193,7 @@ function CompatibilityTab({ app }: { app: import("@/types").AppDefinition }) {
                         letterSpacing: "0.05em",
                       }}
                     >
-                      Min. RAM
+                      {t.appDetail.minRam}
                     </div>
                     <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
                       {Math.round(entry.minRam / (1024 * 1024 * 1024))} GB
@@ -1205,7 +1213,7 @@ function CompatibilityTab({ app }: { app: import("@/types").AppDefinition }) {
                         letterSpacing: "0.05em",
                       }}
                     >
-                      Notes
+                      {t.appDetail.notes}
                     </div>
                     <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
                       {entry.notes}

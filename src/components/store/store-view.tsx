@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { useLauncherStore } from "@/stores/launcher-store";
+import { getTranslations } from "@/lib/i18n";
 import { CATEGORY_META } from "@/lib/app-registry";
 import AppIcon from "@/components/icons/app-icon";
 import type { AppDefinition, AppCategory } from "@/types";
@@ -25,7 +26,9 @@ export default function StoreView() {
     installApp,
     launchApp,
     activateLicense,
+    language,
   } = useLauncherStore();
+  const t = getTranslations(language);
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState<"all" | AppCategory>("all");
   const [licenseModal, setLicenseModal] = useState<string | null>(null);
@@ -87,10 +90,10 @@ export default function StoreView() {
               }}
             >
               <Store size={22} />
-              Store
+              {t.store.title}
             </h1>
             <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
-              Browse, install, and manage Avosos applications. Activate licenses to unlock premium features.
+              {t.store.description}
             </p>
           </div>
         </div>
@@ -141,15 +144,14 @@ export default function StoreView() {
                   letterSpacing: "0.06em",
                 }}
               >
-                Featured
+                {t.store.featured}
               </span>
             </div>
             <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>
-              Avosos Application Suite
+              {t.store.featuredTitle}
             </h2>
             <p style={{ fontSize: 13, color: "var(--text-secondary)", maxWidth: 420 }}>
-              Professional-grade tools for video editing, audio processing, writing, manga reading, and more.
-              All free to install.
+              {t.store.featuredDesc}
             </p>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -193,7 +195,7 @@ export default function StoreView() {
             />
             <input
               className="input"
-              placeholder="Search store…"
+              placeholder={t.store.searchPlaceholder}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={{ paddingLeft: 36 }}
@@ -214,7 +216,7 @@ export default function StoreView() {
                 cursor: "pointer",
               }}
             >
-              <option value="all">All Categories</option>
+              <option value="all">{t.store.allCategories}</option>
               {categories.map((cat) => (
                 <option key={cat} value={cat}>
                   {CATEGORY_META[cat]?.label ?? cat}
@@ -289,6 +291,8 @@ function StoreCard({
   onLaunch: () => void;
   onActivateLicense: () => void;
 }) {
+  const language = useLauncherStore((s) => s.language);
+  const t = getTranslations(language);
   const catMeta = CATEGORY_META[app.category];
 
   return (
@@ -342,7 +346,7 @@ function StoreCard({
               textTransform: "uppercase",
             }}
           >
-            Maintenance
+            {t.store.maintenance}
           </span>
         )}
         {app.isRunning && (
@@ -363,7 +367,7 @@ function StoreCard({
             }}
           >
             <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--success)" }} />
-            Running
+            {t.store.running}
           </div>
         )}
       </div>
@@ -395,7 +399,7 @@ function StoreCard({
         >
           <span>{app.vendor}</span>
           {app.size && <span>{app.size}</span>}
-          <span style={{ color: "var(--success)", fontWeight: 600 }}>Free</span>
+          <span style={{ color: "var(--success)", fontWeight: 600 }}>{t.store.free}</span>
         </div>
 
         {/* Install progress bar */}
@@ -446,7 +450,7 @@ function StoreCard({
                 background: "rgba(249,115,22,0.1)",
               }}
             >
-              {app.uninstallProgress || "Uninstalling…"}
+              {app.uninstallProgress || t.store.uninstalling}
             </div>
           </div>
         )}
@@ -473,13 +477,13 @@ function StoreCard({
             }}
           >
             {app.isLaunching ? (
-              <><Play size={13} /> Starting…</>
+              <><Play size={13} /> {t.store.starting}</>
             ) : app.installing ? (
-              <><Download size={13} /> Installing…</>
+              <><Download size={13} /> {t.store.installing}</>
             ) : !app.installed ? (
-              <><Download size={13} /> Install</>
+              <><Download size={13} /> {t.store.install}</>
             ) : (
-              <><Play size={13} fill="white" /> Launch</>
+              <><Play size={13} fill="white" /> {t.store.launch}</>
             )}
           </button>
 
@@ -491,7 +495,7 @@ function StoreCard({
               e.stopPropagation();
               onActivateLicense();
             }}
-            title="Activate License"
+            title={t.store.activateLicense}
           >
             <Key size={13} />
           </button>
@@ -516,7 +520,7 @@ function StoreCard({
             }}
           >
             {app.licenseStatus === "valid" ? <Check size={10} /> : <Lock size={10} />}
-            License: {app.licenseStatus}
+            {t.store.licenseStatus.replace("{status}", app.licenseStatus ?? "")}
           </div>
         )}
       </div>
@@ -534,6 +538,8 @@ function LicenseModal({
   onClose: () => void;
   onActivate: (key: string) => Promise<boolean>;
 }) {
+  const language = useLauncherStore((s) => s.language);
+  const t = getTranslations(language);
   const [key, setKey] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -545,7 +551,7 @@ function LicenseModal({
     const ok = await onActivate(key.trim());
     setLoading(false);
     if (!ok) {
-      setError("Invalid license key. Please check and try again.");
+      setError(t.store.licenseError);
     }
   };
 
@@ -597,7 +603,7 @@ function LicenseModal({
               <Key size={18} style={{ color: "#f59e0b" }} />
             </div>
             <div>
-              <h2 style={{ fontSize: 16, fontWeight: 700 }}>Activate License</h2>
+              <h2 style={{ fontSize: 16, fontWeight: 700 }}>{t.store.modalTitle}</h2>
               <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{appName}</div>
             </div>
           </div>
@@ -616,11 +622,11 @@ function LicenseModal({
               marginBottom: 8,
             }}
           >
-            License Key
+            {t.store.licenseKey}
           </label>
           <input
             className="input"
-            placeholder="XXXX-XXXX-XXXX-XXXX"
+            placeholder={t.store.licensePlaceholder}
             value={key}
             onChange={(e) => setKey(e.target.value)}
             autoFocus
@@ -645,7 +651,7 @@ function LicenseModal({
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
           <button className="btn-secondary" onClick={onClose} style={{ padding: "8px 16px", fontSize: 13 }}>
-            Cancel
+            {t.store.cancel}
           </button>
           <button
             className="btn-primary"
@@ -653,7 +659,7 @@ function LicenseModal({
             disabled={!key.trim() || loading}
             style={{ padding: "8px 20px", fontSize: 13 }}
           >
-            {loading ? "Validating…" : "Activate"}
+            {loading ? t.store.validating : t.store.activate}
           </button>
         </div>
       </div>

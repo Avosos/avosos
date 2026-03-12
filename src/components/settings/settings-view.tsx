@@ -16,6 +16,7 @@ import {
   Lock,
 } from "lucide-react";
 import { useLauncherStore } from "@/stores/launcher-store";
+import { getTranslations, LANGUAGES } from "@/lib/i18n";
 
 type SettingsSection =
   | "general"
@@ -26,19 +27,32 @@ type SettingsSection =
   | "cloud"
   | "about";
 
-const SECTIONS: { id: SettingsSection; label: string; icon: React.ElementType }[] = [
-  { id: "general", label: "General", icon: Monitor },
-  { id: "appearance", label: "Appearance", icon: Palette },
-  { id: "notifications", label: "Notifications", icon: Bell },
-  { id: "updates", label: "Updates", icon: Download },
-  { id: "storage", label: "Storage", icon: HardDrive },
-  { id: "cloud", label: "Cloud Sync", icon: Cloud },
-  { id: "about", label: "About", icon: Globe },
+const SECTION_ICONS: { id: SettingsSection; icon: React.ElementType }[] = [
+  { id: "general", icon: Monitor },
+  { id: "appearance", icon: Palette },
+  { id: "notifications", icon: Bell },
+  { id: "updates", icon: Download },
+  { id: "storage", icon: HardDrive },
+  { id: "cloud", icon: Cloud },
+  { id: "about", icon: Globe },
 ];
 
 export default function SettingsView() {
   const [activeSection, setActiveSection] = useState<SettingsSection>("general");
-  const { systemInfo, gpuInfo } = useLauncherStore();
+  const { systemInfo, gpuInfo, language } = useLauncherStore();
+  const t = getTranslations(language);
+
+  const sectionLabels: Record<SettingsSection, string> = {
+    general: t.settings.general,
+    appearance: t.settings.appearance,
+    notifications: t.settings.notificationsTab,
+    updates: t.settings.updatesTab,
+    storage: t.settings.storage,
+    cloud: t.settings.cloudSync,
+    about: t.settings.aboutTab,
+  };
+
+  const SECTIONS = SECTION_ICONS.map((s) => ({ ...s, label: sectionLabels[s.id] }));
 
   return (
     <div
@@ -67,7 +81,7 @@ export default function SettingsView() {
             marginBottom: 16,
           }}
         >
-          Settings
+          {t.sidebar.settings}
         </h2>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -229,11 +243,13 @@ function GeneralSettings() {
     minimizeToTray, setMinimizeToTray,
     confirmLaunch, setConfirmLaunch,
     projectsDir, setProjectsDir,
+    language, setLanguage,
   } = useLauncherStore();
+  const t = getTranslations(language);
 
   const handleChangeInstallDir = async () => {
     const selected = await window.electronAPI?.openFolderDialog({
-      title: "Select application install directory",
+      title: t.settings.installDir,
       defaultPath: installDir || undefined,
     });
     if (selected) {
@@ -243,7 +259,7 @@ function GeneralSettings() {
 
   const handleChangeProjectsDir = async () => {
     const selected = await window.electronAPI?.openFolderDialog({
-      title: "Select default projects directory",
+      title: t.settings.projectsDir,
       defaultPath: projectsDir || undefined,
     });
     if (selected) {
@@ -253,31 +269,54 @@ function GeneralSettings() {
 
   return (
     <div className="animate-fadeIn">
-      <SettingGroup title="General" description="Basic launcher behavior">
+      <SettingGroup title={t.settings.generalTitle} description={t.settings.generalDesc}>
         <SettingRow
-          label="Start on system boot"
-          description="Automatically launch Avosos when you log in"
+          label={t.settings.startOnBoot}
+          description={t.settings.startOnBootDesc}
         >
           <Toggle enabled={startOnBoot} onChange={() => setStartOnBoot(!startOnBoot)} />
         </SettingRow>
         <SettingRow
-          label="Minimize to tray"
-          description="Keep running in the system tray when closed"
+          label={t.settings.minimizeToTray}
+          description={t.settings.minimizeToTrayDesc}
         >
           <Toggle enabled={minimizeToTray} onChange={() => setMinimizeToTray(!minimizeToTray)} />
         </SettingRow>
         <SettingRow
-          label="Confirm before launching"
-          description="Show confirmation dialog before starting applications"
+          label={t.settings.confirmLaunch}
+          description={t.settings.confirmLaunchDesc}
         >
           <Toggle enabled={confirmLaunch} onChange={() => setConfirmLaunch(!confirmLaunch)} />
         </SettingRow>
+        <SettingRow
+          label={t.settings.language}
+          description={t.settings.languageDesc}
+        >
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value as import("@/lib/i18n").Language)}
+            style={{
+              appearance: "none",
+              background: "var(--bg-tertiary)",
+              border: "1px solid var(--border-default)",
+              borderRadius: 8,
+              padding: "6px 28px 6px 10px",
+              color: "var(--text-primary)",
+              fontSize: 12,
+              cursor: "pointer",
+            }}
+          >
+            {LANGUAGES.map((l) => (
+              <option key={l.value} value={l.value}>{l.label}</option>
+            ))}
+          </select>
+        </SettingRow>
       </SettingGroup>
 
-      <SettingGroup title="Default Paths">
+      <SettingGroup title={t.settings.defaultPaths}>
         <SettingRow
-          label="Install directory"
-          description={installDir || "Not set – using default location"}
+          label={t.settings.installDir}
+          description={installDir || t.settings.installDirDefault}
         >
           <button
             className="btn-secondary"
@@ -285,12 +324,12 @@ function GeneralSettings() {
             onClick={handleChangeInstallDir}
           >
             <FolderOpen size={12} />
-            Change
+            {t.settings.change}
           </button>
         </SettingRow>
         <SettingRow
-          label="Projects directory"
-          description={projectsDir || "Not set – using default location"}
+          label={t.settings.projectsDir}
+          description={projectsDir || t.settings.projectsDirDefault}
         >
           <button
             className="btn-secondary"
@@ -298,7 +337,7 @@ function GeneralSettings() {
             onClick={handleChangeProjectsDir}
           >
             <FolderOpen size={12} />
-            Change
+            {t.settings.change}
           </button>
         </SettingRow>
       </SettingGroup>
@@ -307,7 +346,8 @@ function GeneralSettings() {
 }
 
 function AppearanceSettings() {
-  const { theme, accentColor, setTheme, setAccentColor } = useLauncherStore();
+  const { theme, accentColor, setTheme, setAccentColor, language } = useLauncherStore();
+  const t = getTranslations(language);
 
   const ACCENT_COLORS = [
     { color: "#7c5cfc", label: "Purple" },
@@ -320,8 +360,8 @@ function AppearanceSettings() {
 
   return (
     <div className="animate-fadeIn">
-      <SettingGroup title="Appearance" description="Customize the launcher look and feel">
-        <SettingRow label="Theme">
+      <SettingGroup title={t.settings.appearanceTitle} description={t.settings.appearanceDesc}>
+        <SettingRow label={t.settings.theme}>
           <div
             style={{
               display: "flex",
@@ -331,30 +371,30 @@ function AppearanceSettings() {
               padding: 3,
             }}
           >
-            {(["dark", "grey", "light"] as const).map((t) => (
+            {(["dark", "grey", "light"] as const).map((th) => (
               <button
-                key={t}
-                onClick={() => setTheme(t)}
+                key={th}
+                onClick={() => setTheme(th)}
                 style={{
                   padding: "5px 14px",
                   borderRadius: 6,
                   border: "none",
-                  background: theme === t ? "var(--bg-hover)" : "transparent",
-                  color: theme === t ? "var(--text-primary)" : "var(--text-muted)",
+                  background: theme === th ? "var(--bg-hover)" : "transparent",
+                  color: theme === th ? "var(--text-primary)" : "var(--text-muted)",
                   fontSize: 12,
                   fontWeight: 500,
                   cursor: "pointer",
                   textTransform: "capitalize",
                 }}
               >
-                {t === "grey" ? "Grey" : t}
+                {th === "dark" ? t.settings.dark : th === "grey" ? t.settings.grey : t.settings.light}
               </button>
             ))}
           </div>
         </SettingRow>
         <SettingRow
-          label="Accent color"
-          description="Primary color used throughout the launcher"
+          label={t.settings.accentColor}
+          description={t.settings.accentColorDesc}
         >
           <div style={{ display: "flex", gap: 6 }}>
             {ACCENT_COLORS.map(({ color }) => (
@@ -389,35 +429,37 @@ function NotificationSettings() {
     notifyOnUpdate, setNotifyOnUpdate,
     notifyOnLaunch, setNotifyOnLaunch,
     notifications, clearAllNotifications,
+    language,
   } = useLauncherStore();
+  const t = getTranslations(language);
 
   return (
     <div className="animate-fadeIn">
-      <SettingGroup title="Notifications" description="Control what notifications you receive">
+      <SettingGroup title={t.settings.notificationsTitle} description={t.settings.notificationsDesc}>
         <SettingRow
-          label="Install / Uninstall progress"
-          description="Show Epic Games-style progress bar when installing or removing apps"
+          label={t.settings.installProgress}
+          description={t.settings.installProgressDesc}
         >
           <Toggle enabled={notifyOnInstall} onChange={() => setNotifyOnInstall(!notifyOnInstall)} />
         </SettingRow>
         <SettingRow
-          label="Update alerts"
-          description="Notify when new app versions are available"
+          label={t.settings.updateAlerts}
+          description={t.settings.updateAlertsDesc}
         >
           <Toggle enabled={notifyOnUpdate} onChange={() => setNotifyOnUpdate(!notifyOnUpdate)} />
         </SettingRow>
         <SettingRow
-          label="Launch events"
-          description="Show notification when an app starts or stops"
+          label={t.settings.launchEvents}
+          description={t.settings.launchEventsDesc}
         >
           <Toggle enabled={notifyOnLaunch} onChange={() => setNotifyOnLaunch(!notifyOnLaunch)} />
         </SettingRow>
       </SettingGroup>
 
-      <SettingGroup title="Notification History">
+      <SettingGroup title={t.settings.notificationHistory}>
         <SettingRow
-          label={`${notifications.length} notification${notifications.length !== 1 ? "s" : ""}`}
-          description="Total notifications in the current session"
+          label={t.settings.notificationCount.replace("{n}", String(notifications.length))}
+          description={t.settings.notificationSessionDesc}
         >
           <button
             className="btn-secondary"
@@ -425,7 +467,7 @@ function NotificationSettings() {
             onClick={clearAllNotifications}
             disabled={notifications.length === 0}
           >
-            Clear All
+            {t.settings.clearAll}
           </button>
         </SettingRow>
       </SettingGroup>
@@ -438,7 +480,9 @@ function UpdateSettings() {
     autoCheckUpdates, setAutoCheckUpdates,
     autoInstallUpdates, setAutoInstallUpdates,
     apps,
+    language,
   } = useLauncherStore();
+  const t = getTranslations(language);
   const [checking, setChecking] = useState(false);
   const [checkResult, setCheckResult] = useState<string | null>(null);
 
@@ -451,11 +495,11 @@ function UpdateSettings() {
       await window.electronAPI?.checkForUpdates?.();
       setCheckResult(
         outdatedApps.length > 0
-          ? `${outdatedApps.length} update${outdatedApps.length > 1 ? "s" : ""} available.`
-          : "All applications are up to date."
+          ? t.settings.updatesAvailable.replace("{n}", String(outdatedApps.length))
+          : t.settings.allUpToDate
       );
     } catch {
-      setCheckResult("Failed to check for updates.");
+      setCheckResult(t.settings.checkFailed);
     } finally {
       setChecking(false);
     }
@@ -463,22 +507,22 @@ function UpdateSettings() {
 
   return (
     <div className="animate-fadeIn">
-      <SettingGroup title="Updates" description="How updates are handled">
+      <SettingGroup title={t.settings.updatesTitle} description={t.settings.updatesDesc}>
         <SettingRow
-          label="Automatically check for updates"
-          description="Periodically check if new versions are available"
+          label={t.settings.autoCheck}
+          description={t.settings.autoCheckDesc}
         >
           <Toggle enabled={autoCheckUpdates} onChange={() => setAutoCheckUpdates(!autoCheckUpdates)} />
         </SettingRow>
         <SettingRow
-          label="Auto-install updates"
-          description="Automatically download and install available updates"
+          label={t.settings.autoInstall}
+          description={t.settings.autoInstallDesc}
         >
           <Toggle enabled={autoInstallUpdates} onChange={() => setAutoInstallUpdates(!autoInstallUpdates)} />
         </SettingRow>
         <SettingRow
-          label="Check for updates"
-          description={checkResult ?? (outdatedApps.length > 0 ? `${outdatedApps.length} update(s) available` : "Last checked: unknown")}
+          label={t.settings.checkForUpdates}
+          description={checkResult ?? (outdatedApps.length > 0 ? t.settings.updatesAvailable.replace("{n}", String(outdatedApps.length)) : t.settings.lastChecked)}
         >
           <button
             className="btn-secondary"
@@ -486,7 +530,7 @@ function UpdateSettings() {
             onClick={handleCheckNow}
             disabled={checking}
           >
-            {checking ? "Checking…" : "Check Now"}
+            {checking ? t.settings.checking : t.settings.checkNow}
           </button>
         </SettingRow>
       </SettingGroup>
@@ -495,7 +539,8 @@ function UpdateSettings() {
 }
 
 function StorageSettings() {
-  const { apps } = useLauncherStore();
+  const { apps, language } = useLauncherStore();
+  const t = getTranslations(language);
   const [storageInfo, setStorageInfo] = useState<{ cacheSize: number; dataSize: number } | null>(null);
   const [diskInfo, setDiskInfo] = useState<{ total: number; free: number } | null>(null);
   const [clearing, setClearing] = useState(false);
@@ -529,7 +574,7 @@ function StorageSettings() {
     <div className="animate-fadeIn">
       {/* Disk overview */}
       {diskInfo && (
-        <SettingGroup title="Disk Overview" description="System drive usage">
+        <SettingGroup title={t.settings.diskOverview} description={t.settings.diskOverviewDesc}>
           <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12 }}>
             <div style={{ flex: 1 }}>
               <div className="progress-bar" style={{ height: 8, borderRadius: 4 }}>
@@ -548,18 +593,18 @@ function StorageSettings() {
             </span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text-muted)" }}>
-            <span>Used: {formatSize(diskInfo.total - diskInfo.free)}</span>
-            <span>Free: {formatSize(diskInfo.free)}</span>
-            <span>Total: {formatSize(diskInfo.total)}</span>
+            <span>{t.settings.used} {formatSize(diskInfo.total - diskInfo.free)}</span>
+            <span>{t.settings.free} {formatSize(diskInfo.free)}</span>
+            <span>{t.settings.total} {formatSize(diskInfo.total)}</span>
           </div>
         </SettingGroup>
       )}
 
-      <SettingGroup title="Launcher Storage" description="Manage disk space and cache">
-        <SettingRow label="Cache size" description="Temporary files and download cache">
+      <SettingGroup title={t.settings.launcherStorage} description={t.settings.launcherStorageDesc}>
+        <SettingRow label={t.settings.cacheSize} description={t.settings.cacheSizeDesc}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)" }}>
-              {storageInfo ? formatSize(storageInfo.cacheSize) : "Calculating…"}
+              {storageInfo ? formatSize(storageInfo.cacheSize) : t.settings.calculating}
             </span>
             <button
               className="btn-secondary"
@@ -567,20 +612,20 @@ function StorageSettings() {
               onClick={handleClearCache}
               disabled={clearing}
             >
-              {clearing ? "Clearing…" : "Clear"}
+              {clearing ? t.settings.clearing : t.settings.clear}
             </button>
           </div>
         </SettingRow>
-        <SettingRow label="Application data" description="Settings, profiles, and configuration files">
+        <SettingRow label={t.settings.appData} description={t.settings.appDataDesc}>
           <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)" }}>
-            {storageInfo ? formatSize(storageInfo.dataSize) : "Calculating…"}
+            {storageInfo ? formatSize(storageInfo.dataSize) : t.settings.calculating}
           </span>
         </SettingRow>
       </SettingGroup>
 
       {/* Per-app storage */}
       {installedApps.length > 0 && (
-        <SettingGroup title="Installed Applications" description="Storage per installed app">
+        <SettingGroup title={t.settings.installedApps} description={t.settings.installedAppsDesc}>
           {installedApps.map((app) => (
             <SettingRow
               key={app.id}
@@ -599,6 +644,8 @@ function StorageSettings() {
 }
 
 function CloudSettings() {
+  const language = useLauncherStore(s => s.language);
+  const t = getTranslations(language);
   const [serverUrl, setServerUrl] = useState("");
   const [syncSettings, setSyncSettings] = useState(true);
   const [syncProjects, setSyncProjects] = useState(false);
@@ -606,15 +653,15 @@ function CloudSettings() {
   return (
     <div className="animate-fadeIn">
       <SettingGroup
-        title="Cloud Synchronization"
-        description="Sync your settings and projects across devices (requires Avosos server)"
+        title={t.settings.cloudSyncTitle}
+        description={t.settings.cloudSyncDesc}
       >
-        <SettingRow label="Server URL" description="Your Avosos sync server address">
+        <SettingRow label={t.settings.serverUrl} description={t.settings.serverUrlDesc}>
           <input
             type="text"
             value={serverUrl}
             onChange={(e) => setServerUrl(e.target.value)}
-            placeholder="https://your-server.example.com"
+            placeholder={t.settings.serverUrlPlaceholder}
             style={{
               width: 240,
               padding: "6px 10px",
@@ -627,25 +674,25 @@ function CloudSettings() {
           />
         </SettingRow>
         <SettingRow
-          label="Sync settings"
-          description="Synchronize launcher preferences and appearance"
+          label={t.settings.syncSettings}
+          description={t.settings.syncSettingsDesc}
         >
           <Toggle enabled={syncSettings} onChange={() => setSyncSettings(!syncSettings)} />
         </SettingRow>
         <SettingRow
-          label="Sync projects"
-          description="Synchronize project metadata and configuration"
+          label={t.settings.syncProjects}
+          description={t.settings.syncProjectsDesc}
         >
           <Toggle enabled={syncProjects} onChange={() => setSyncProjects(!syncProjects)} />
         </SettingRow>
-        <SettingRow label="Last sync" description="Never — server not configured">
+        <SettingRow label={t.settings.lastSync} description={t.settings.lastSyncNever}>
           <button
             className="btn-secondary"
             style={{ padding: "5px 12px", fontSize: 12 }}
             disabled={!serverUrl.trim()}
             onClick={() => {/* future: trigger sync */}}
           >
-            Sync Now
+            {t.settings.syncNow}
           </button>
         </SettingRow>
       </SettingGroup>
@@ -662,10 +709,10 @@ function CloudSettings() {
         >
           <Lock size={20} style={{ color: "var(--text-dim)", marginBottom: 6 }} />
           <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>
-            Server required
+            {t.settings.serverRequired}
           </div>
           <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, maxWidth: 360, margin: "0 auto" }}>
-            Cloud sync requires a configured Avosos server. Enter your server URL above to enable synchronization.
+            {t.settings.cloudSyncAlert}
           </p>
         </div>
       )}
@@ -680,9 +727,11 @@ function AboutSettings({
   systemInfo: import("@/types").SystemInfo | null;
   gpuInfo: import("@/types").GpuInfo | null;
 }) {
+  const language = useLauncherStore(s => s.language);
+  const t = getTranslations(language);
   return (
     <div className="animate-fadeIn">
-      <SettingGroup title="About Avosos Launcher">
+      <SettingGroup title={t.settings.aboutTitle}>
         <div
           style={{
             display: "flex",
@@ -718,41 +767,41 @@ function AboutSettings({
             <circle cx="205" cy="105" r="8" fill="white" opacity="0.8" />
           </svg>
           <div>
-            <div style={{ fontSize: 20, fontWeight: 800 }}>Avosos Launcher</div>
+            <div style={{ fontSize: 20, fontWeight: 800 }}>{t.settings.aboutName}</div>
             <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-              Version 0.1.0 (alpha)
+              {t.settings.aboutVersion}
             </div>
             <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 2 }}>
-              Universal application launcher for professional workflows
+              {t.settings.aboutDesc}
             </div>
           </div>
         </div>
       </SettingGroup>
 
       {systemInfo && (
-        <SettingGroup title="System Information" description="Your machine details">
-          <InfoTableRow label="Platform" value={systemInfo.platform} />
-          <InfoTableRow label="Architecture" value={systemInfo.arch} />
-          <InfoTableRow label="Hostname" value={systemInfo.hostname} />
-          <InfoTableRow label="CPU" value={systemInfo.cpu} />
-          <InfoTableRow label="CPU Cores" value={String(systemInfo.cpuCores)} />
+        <SettingGroup title={t.settings.systemInfo} description={t.settings.systemInfoDesc}>
+          <InfoTableRow label={t.settings.platform} value={systemInfo.platform} />
+          <InfoTableRow label={t.settings.architecture} value={systemInfo.arch} />
+          <InfoTableRow label={t.settings.hostname} value={systemInfo.hostname} />
+          <InfoTableRow label={t.settings.cpuLabel} value={systemInfo.cpu} />
+          <InfoTableRow label={t.settings.cpuCores} value={String(systemInfo.cpuCores)} />
           <InfoTableRow
-            label="Total Memory"
+            label={t.settings.totalMemory}
             value={`${(systemInfo.totalMemory / (1024 ** 3)).toFixed(1)} GB`}
           />
           {gpuInfo && gpuInfo.name !== "Unknown" && (
             <>
-              <InfoTableRow label="GPU" value={gpuInfo.name} />
+              <InfoTableRow label={t.settings.gpuLabel} value={gpuInfo.name} />
               {gpuInfo.vram > 0 && (
                 <InfoTableRow
-                  label="VRAM"
+                  label={t.settings.vram}
                   value={`${(gpuInfo.vram / (1024 ** 3)).toFixed(1)} GB`}
                 />
               )}
             </>
           )}
           <InfoTableRow
-            label="Uptime"
+            label={t.settings.uptime}
             value={`${Math.floor(systemInfo.uptime / 3600)}h ${Math.floor(
               (systemInfo.uptime % 3600) / 60
             )}m`}
@@ -760,7 +809,7 @@ function AboutSettings({
         </SettingGroup>
       )}
 
-      <SettingGroup title="Links">
+      <SettingGroup title={t.settings.links}>
         <button
           className="btn-ghost"
           style={{
@@ -774,7 +823,7 @@ function AboutSettings({
           }
         >
           <ExternalLink size={13} />
-          GitHub Organization
+          {t.settings.githubOrg}
         </button>
       </SettingGroup>
     </div>

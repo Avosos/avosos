@@ -17,6 +17,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useLauncherStore } from "@/stores/launcher-store";
+import { getTranslations } from "@/lib/i18n";
 import AppIcon from "@/components/icons/app-icon";
 import type { EnvironmentProfile } from "@/types";
 
@@ -32,8 +33,9 @@ const ICON_MAP: Record<string, React.ElementType> = {
 };
 
 export default function ProfilesView() {
-  const { profiles, activeProfileId, setActiveProfile, addProfile, removeProfile, apps } =
+  const { profiles, activeProfileId, setActiveProfile, addProfile, removeProfile, apps, language } =
     useLauncherStore();
+  const t = getTranslations(language);
 
   const handleCreateProfile = () => {
     const name = window.prompt("Profile name:");
@@ -43,7 +45,7 @@ export default function ProfilesView() {
     addProfile({
       id: `profile-${Date.now()}`,
       name: name.trim(),
-      description: "Custom environment profile",
+      description: t.profiles.defaultDesc,
       icon: icons[Math.floor(Math.random() * icons.length)],
       color: colors[Math.floor(Math.random() * colors.length)],
       apps: [],
@@ -67,12 +69,10 @@ export default function ProfilesView() {
             marginBottom: 4,
           }}
         >
-          Environment Profiles
+          {t.profiles.title}
         </h1>
         <p style={{ fontSize: 13, color: "var(--text-muted)", maxWidth: 600 }}>
-          Profiles define a curated set of tools, versions, plugins, and configurations.
-          Switch between profiles to instantly change your working environment.
-          Profiles are portable and can restore your setup on any machine.
+          {t.profiles.description}
         </p>
       </div>
 
@@ -91,7 +91,7 @@ export default function ProfilesView() {
             isActive={profile.id === activeProfileId}
             onActivate={() => setActiveProfile(profile.id)}
             onRemove={() => {
-              if (confirm(`Remove profile "${profile.name}"?`)) {
+              if (confirm(t.profiles.removeConfirm.replace("{name}", profile.name))) {
                 removeProfile(profile.id);
               }
             }}
@@ -126,10 +126,10 @@ export default function ProfilesView() {
         >
           <Plus size={28} style={{ color: "var(--text-muted)" }} />
           <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-muted)" }}>
-            Create Profile
+            {t.profiles.createProfile}
           </span>
           <span style={{ fontSize: 11, color: "var(--text-dim)", textAlign: "center" }}>
-            Define a new environment configuration
+            {t.profiles.createProfileDesc}
           </span>
         </div>
       </div>
@@ -150,6 +150,8 @@ function ProfileCard({
   onRemove: () => void;
   apps: import("@/types").AppDefinition[];
 }) {
+  const language = useLauncherStore((s) => s.language);
+  const t = getTranslations(language);
   const IconComp = ICON_MAP[profile.icon] ?? Layout;
   const profileApps = profile.apps
     .map((ref) => apps.find((a) => a.id === ref.appId))
@@ -215,7 +217,7 @@ function ProfileCard({
                   }}
                 >
                   <Check size={10} />
-                  Active
+                  {t.profiles.active}
                 </span>
               )}
             </div>
@@ -244,7 +246,7 @@ function ProfileCard({
                 marginBottom: 8,
               }}
             >
-              Applications ({profileApps.length})
+              {t.profiles.applicationsCount.replace("{n}", String(profileApps.length))}
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {profileApps.map((app) => (
@@ -281,7 +283,7 @@ function ProfileCard({
               marginBottom: 14,
             }}
           >
-            No applications configured yet
+            {t.profiles.noApps}
           </div>
         )}
 
@@ -298,10 +300,10 @@ function ProfileCard({
             <button
               className="btn-secondary"
               style={{ flex: 1, justifyContent: "center" }}
-              onClick={() => alert("Profile editor coming soon")}
+              onClick={() => alert(t.profiles.editorComingSoon)}
             >
               <Settings size={13} />
-              Configure
+              {t.profiles.configure}
             </button>
           ) : (
             <button
@@ -310,7 +312,7 @@ function ProfileCard({
               onClick={onActivate}
             >
               <Check size={13} />
-              Activate
+              {t.profiles.activate}
             </button>
           )}
           <button

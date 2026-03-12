@@ -39,6 +39,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { useLauncherStore } from "@/stores/launcher-store";
+import { getTranslations } from "@/lib/i18n";
 import AppIcon from "@/components/icons/app-icon";
 import type { RuntimeInfo, LauncherLogEntry } from "@/types";
 
@@ -53,15 +54,14 @@ type AdminSection =
 
 const SECTIONS: {
   id: AdminSection;
-  label: string;
   icon: React.ElementType;
 }[] = [
-  { id: "overview", label: "Overview", icon: Activity },
-  { id: "apps", label: "App Management", icon: Package },
-  { id: "users", label: "User Management", icon: Users },
-  { id: "devtools", label: "Developer Tools", icon: Terminal },
-  { id: "maintenance", label: "Maintenance", icon: Wrench },
-  { id: "security", label: "Access & Security", icon: Shield },
+  { id: "overview", icon: Activity },
+  { id: "apps", icon: Package },
+  { id: "users", icon: Users },
+  { id: "devtools", icon: Terminal },
+  { id: "maintenance", icon: Wrench },
+  { id: "security", icon: Shield },
 ];
 
 /* ═══════════════════════════════════════════════════════════ */
@@ -69,6 +69,16 @@ const SECTIONS: {
 /* ═══════════════════════════════════════════════════════════ */
 
 export default function AdminBoard() {
+  const language = useLauncherStore(s => s.language);
+  const t = getTranslations(language);
+  const sectionLabels: Record<AdminSection, string> = {
+    overview: t.admin.tabOverview,
+    apps: t.admin.tabAppMgmt,
+    users: t.admin.tabUserMgmt,
+    devtools: t.admin.tabDevTools,
+    maintenance: t.admin.tabMaintenance,
+    security: t.admin.tabSecurity,
+  };
   const [activeSection, setActiveSection] =
     useState<AdminSection>("overview");
 
@@ -122,7 +132,7 @@ export default function AdminBoard() {
                 lineHeight: 1.2,
               }}
             >
-              Admin
+              {t.admin.title}
             </h2>
             <div
               style={{
@@ -133,7 +143,7 @@ export default function AdminBoard() {
                 letterSpacing: "0.06em",
               }}
             >
-              Control Panel
+              {t.admin.controlPanel}
             </div>
           </div>
         </div>
@@ -182,7 +192,7 @@ export default function AdminBoard() {
                 }}
               >
                 <Icon size={16} />
-                {section.label}
+                {sectionLabels[section.id]}
               </button>
             );
           })}
@@ -352,8 +362,9 @@ function AdminCard({
 /* ═══════════════════════════════════════════════════════════ */
 
 function OverviewSection() {
-  const { apps, runningApps, systemStats, systemInfo, profiles, projects } =
+  const { apps, runningApps, systemStats, systemInfo, profiles, projects, language } =
     useLauncherStore();
+  const t = getTranslations(language);
 
   const installedCount = apps.filter((a) => a.installed).length;
   const withSource = apps.filter((a) => a.sourcePath).length;
@@ -361,8 +372,8 @@ function OverviewSection() {
   return (
     <div className="animate-fadeIn">
       <SectionHeader
-        title="Admin Overview"
-        description="System health, registered applications, and launcher status at a glance."
+        title={t.admin.overviewTitle}
+        description={t.admin.overviewDesc}
       />
 
       {/* Quick stats */}
@@ -375,14 +386,14 @@ function OverviewSection() {
         }}
       >
         <StatCard
-          label="Registered Apps"
+          label={t.admin.registeredApps}
           value={apps.length}
           icon={Package}
           color="var(--accent)"
-          sub={`${installedCount} installed, ${withSource} with source`}
+          sub={`${installedCount} ${t.admin.installedWithSource.replace("{n}", String(withSource))}`}
         />
         <StatCard
-          label="Running"
+          label={t.admin.running}
           value={runningApps.size}
           icon={Play}
           color="var(--success)"
@@ -394,17 +405,17 @@ function OverviewSection() {
                       apps.find((a) => a.id === id)?.name ?? id
                   )
                   .join(", ")
-              : "No apps running"
+              : t.admin.noAppsRunning
           }
         />
         <StatCard
-          label="CPU"
+          label={t.admin.cpu}
           value={`${systemStats?.cpuUsage ?? 0}%`}
           icon={Server}
           color="var(--accent)"
         />
         <StatCard
-          label="Memory"
+          label={t.admin.memory}
           value={`${systemStats?.memoryUsage ?? 0}%`}
           icon={HardDrive}
           color="var(--info)"
@@ -424,7 +435,7 @@ function OverviewSection() {
           }}
         >
           <Package size={15} />
-          Registered Applications
+          {t.admin.registeredAppsTable}
         </h3>
 
         <div style={{ overflow: "auto" }}>
@@ -441,7 +452,7 @@ function OverviewSection() {
                   borderBottom: "1px solid var(--border-subtle)",
                 }}
               >
-                {["App", "Version", "Category", "Source", "Status"].map(
+                {[t.admin.colApp, t.admin.colVersion, t.admin.colCategory, t.admin.colSource, t.admin.colStatus].map(
                   (h) => (
                     <th
                       key={h}
@@ -531,7 +542,7 @@ function OverviewSection() {
                           fill="var(--success)"
                           stroke="none"
                         />
-                        Running
+                        {t.admin.statusRunning}
                       </span>
                     ) : app.installed ? (
                       <span
@@ -540,7 +551,7 @@ function OverviewSection() {
                           fontSize: 11,
                         }}
                       >
-                        Installed
+                        {t.admin.statusInstalled}
                       </span>
                     ) : (
                       <span
@@ -549,7 +560,7 @@ function OverviewSection() {
                           fontSize: 11,
                         }}
                       >
-                        Not installed
+                        {t.admin.statusNotInstalled}
                       </span>
                     )}
                   </td>
@@ -570,7 +581,7 @@ function OverviewSection() {
               marginBottom: 10,
             }}
           >
-            Profiles
+            {t.admin.profilesCard}
           </h3>
           <div
             style={{
@@ -588,7 +599,7 @@ function OverviewSection() {
               marginTop: 4,
             }}
           >
-            environment profiles configured
+            {t.admin.profilesDesc}
           </div>
         </AdminCard>
 
@@ -600,7 +611,7 @@ function OverviewSection() {
               marginBottom: 10,
             }}
           >
-            Projects
+            {t.admin.projectsCard}
           </h3>
           <div
             style={{
@@ -618,7 +629,7 @@ function OverviewSection() {
               marginTop: 4,
             }}
           >
-            projects tracked
+            {t.admin.projectsDesc}
           </div>
         </AdminCard>
 
@@ -630,7 +641,7 @@ function OverviewSection() {
               marginBottom: 10,
             }}
           >
-            Platform
+            {t.admin.platformCard}
           </h3>
           <div
             style={{
@@ -649,7 +660,7 @@ function OverviewSection() {
               marginTop: 4,
             }}
           >
-            {systemInfo?.cpu ?? "Unknown CPU"}
+            {systemInfo?.cpu ?? t.admin.unknownCpu}
           </div>
         </AdminCard>
       </div>
@@ -662,8 +673,9 @@ function OverviewSection() {
 /* ═══════════════════════════════════════════════════════════ */
 
 function AppManagementSection() {
-  const { apps, runningApps, selectApp, setView, bumpAppVersion, refreshAppMeta, deployVersion, rollbackVersion, setMaintenanceMode } =
+  const { apps, runningApps, selectApp, setView, bumpAppVersion, refreshAppMeta, deployVersion, rollbackVersion, setMaintenanceMode, language } =
     useLauncherStore();
+  const t = getTranslations(language);
   const [scanning, setScanning] = useState(false);
   const [scanResults, setScanResults] = useState<
     { name: string; path: string; type: string }[] | null
@@ -738,8 +750,8 @@ function AppManagementSection() {
   return (
     <div className="animate-fadeIn">
       <SectionHeader
-        title="App Management"
-        description="Manage registered applications, scan for new projects, and perform bulk operations."
+        title={t.admin.appMgmtTitle}
+        description={t.admin.appMgmtDesc}
       />
 
       {/* Action bar */}
@@ -758,7 +770,7 @@ function AppManagementSection() {
           disabled={scanning}
         >
           <Search size={13} />
-          {scanning ? "Scanning..." : "Scan for Projects"}
+          {scanning ? t.admin.scanning : t.admin.scanForProjects}
         </button>
         <button
           className="btn-secondary"
@@ -767,7 +779,7 @@ function AppManagementSection() {
           disabled={bulkBumping}
         >
           <Zap size={13} />
-          {bulkBumping ? "Bumping all..." : "Auto-Bump All"}
+          {bulkBumping ? t.admin.bumpingAll : t.admin.autoBumpAll}
         </button>
         <button
           className="btn-secondary"
@@ -778,7 +790,7 @@ function AppManagementSection() {
           }}
         >
           <RefreshCw size={13} />
-          Refresh All Metadata
+          {t.admin.refreshMetadata}
         </button>
       </div>
 
@@ -803,14 +815,14 @@ function AppManagementSection() {
               }}
             >
               <FolderOpen size={15} />
-              Scan Results ({scanResults.length} found)
+              {t.admin.scanResults.replace("{n}", String(scanResults.length))}
             </h3>
             <button
               className="btn-ghost"
               style={{ fontSize: 11 }}
               onClick={() => setScanResults(null)}
             >
-              Dismiss
+              {t.admin.dismiss}
             </button>
           </div>
           {scanResults.length === 0 ? (
@@ -820,7 +832,7 @@ function AppManagementSection() {
                 color: "var(--text-muted)",
               }}
             >
-              No projects found in the selected directory.
+              {t.admin.noProjectsFound}
             </p>
           ) : (
             <div
@@ -937,7 +949,7 @@ function AppManagementSection() {
                         color: "var(--success)",
                       }}
                     >
-                      RUNNING
+                      {t.admin.runningBadge}
                     </span>
                   )}
                 </div>
@@ -948,7 +960,7 @@ function AppManagementSection() {
                     marginTop: 2,
                   }}
                 >
-                  {app.sourcePath ?? "No source path configured"}
+                  {app.sourcePath ?? t.admin.noSourcePath}
                 </div>
               </div>
 
@@ -960,7 +972,7 @@ function AppManagementSection() {
                   setView("app-detail");
                 }}
               >
-                Details
+                {t.admin.details}
                 <ChevronRight size={12} />
               </button>
             </div>
@@ -1001,7 +1013,7 @@ function AppManagementSection() {
                     }}
                   >
                     <AlertTriangle size={11} />
-                    Uncommitted changes
+                    {t.admin.uncommitted}
                   </span>
                 )}
 
@@ -1015,7 +1027,7 @@ function AppManagementSection() {
                     }}
                   >
                     <Check size={11} />
-                    Clean
+                    {t.admin.clean}
                   </span>
                 )}
 
@@ -1028,7 +1040,7 @@ function AppManagementSection() {
                     }}
                   >
                     <ArrowUp size={11} color="var(--info)" />
-                    {git.ahead} ahead
+                    {t.admin.ahead.replace("{n}", String(git.ahead))}
                   </span>
                 )}
 
@@ -1041,7 +1053,7 @@ function AppManagementSection() {
                     }}
                   >
                     <ArrowDown size={11} color="var(--warning)" />
-                    {git.behind} behind
+                    {t.admin.behind.replace("{n}", String(git.behind))}
                   </span>
                 )}
 
@@ -1076,7 +1088,7 @@ function AppManagementSection() {
             >
               {/* Deploy version */}
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>Deploy:</span>
+                <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>{t.admin.deployLabel}</span>
                 <select
                   style={{
                     appearance: "none",
@@ -1100,9 +1112,9 @@ function AppManagementSection() {
                     className="btn-ghost"
                     style={{ fontSize: 10, padding: "3px 8px", display: "flex", alignItems: "center", gap: 4 }}
                     onClick={() => rollbackVersion(app.id)}
-                    title="Rollback to current version"
+                    title={t.admin.rollbackTitle}
                   >
-                    <RotateCcw size={10} /> Rollback
+                    <RotateCcw size={10} /> {t.admin.rollback}
                   </button>
                 )}
               </div>
@@ -1110,7 +1122,7 @@ function AppManagementSection() {
               {/* Maintenance toggle */}
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
                 <Power size={12} style={{ color: app.maintenanceMode ? "var(--warning)" : "var(--text-muted)" }} />
-                <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>Maintenance</span>
+                <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600 }}>{t.admin.maintenanceToggle}</span>
                 <Toggle
                   enabled={!!app.maintenanceMode}
                   onChange={() => setMaintenanceMode(app.id, !app.maintenanceMode, app.maintenanceMessage ?? "")}
@@ -1122,7 +1134,7 @@ function AppManagementSection() {
               <div style={{ marginTop: 8 }}>
                 <input
                   type="text"
-                  placeholder="Maintenance message (optional)"
+                  placeholder={t.admin.maintenancePlaceholder}
                   value={app.maintenanceMessage ?? ""}
                   onChange={(e) => setMaintenanceMode(app.id, true, e.target.value)}
                   style={{
@@ -1149,7 +1161,8 @@ function AppManagementSection() {
 /* ═══════════════════════════════════════════════════════════ */
 
 function UserManagementSection() {
-  const { users, loadUsers, addUser, removeUser, updateUserRole } = useLauncherStore();
+  const { users, loadUsers, addUser, removeUser, updateUserRole, language } = useLauncherStore();
+  const t = getTranslations(language);
   const [newUsername, setNewUsername] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newRole, setNewRole] = useState<"admin" | "user">("user");
@@ -1175,8 +1188,8 @@ function UserManagementSection() {
   return (
     <div className="animate-fadeIn">
       <SectionHeader
-        title="User Management"
-        description="Manage launcher users, assign roles, and control access levels."
+        title={t.admin.userMgmtTitle}
+        description={t.admin.userMgmtDesc}
       />
 
       {/* Add user form */}
@@ -1192,18 +1205,18 @@ function UserManagementSection() {
           }}
         >
           <UserPlus size={15} />
-          Add User
+          {t.admin.addUser}
         </h3>
         <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
           <div style={{ flex: 1, minWidth: 160 }}>
             <label style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, display: "block", marginBottom: 4 }}>
-              Username
+              {t.admin.username}
             </label>
             <input
               type="text"
               value={newUsername}
               onChange={(e) => setNewUsername(e.target.value)}
-              placeholder="johndoe"
+              placeholder={t.admin.usernamePlaceholder}
               style={{
                 width: "100%",
                 padding: "8px 12px",
@@ -1217,13 +1230,13 @@ function UserManagementSection() {
           </div>
           <div style={{ flex: 1, minWidth: 200 }}>
             <label style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, display: "block", marginBottom: 4 }}>
-              Email
+              {t.admin.email}
             </label>
             <input
               type="email"
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
-              placeholder="john@example.com"
+              placeholder={t.admin.emailPlaceholder}
               style={{
                 width: "100%",
                 padding: "8px 12px",
@@ -1237,7 +1250,7 @@ function UserManagementSection() {
           </div>
           <div>
             <label style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, display: "block", marginBottom: 4 }}>
-              Role
+              {t.admin.role}
             </label>
             <select
               value={newRole}
@@ -1252,8 +1265,8 @@ function UserManagementSection() {
                 appearance: "none",
               }}
             >
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
+              <option value="user">{t.admin.roleUser}</option>
+              <option value="admin">{t.admin.roleAdmin}</option>
             </select>
           </div>
           <button
@@ -1262,7 +1275,7 @@ function UserManagementSection() {
             onClick={handleAdd}
             disabled={adding || !newUsername.trim() || !newEmail.trim()}
           >
-            <UserPlus size={13} /> Add
+            <UserPlus size={13} /> {t.admin.addBtn}
           </button>
         </div>
       </AdminCard>
@@ -1280,19 +1293,19 @@ function UserManagementSection() {
           }}
         >
           <Users size={15} />
-          Registered Users ({users.length})
+          {t.admin.registeredUsers.replace("{n}", String(users.length))}
         </h3>
 
         {users.length === 0 ? (
           <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
-            No users registered yet. Add a user above.
+            {t.admin.noUsersYet}
           </p>
         ) : (
           <div style={{ overflow: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                  {["Username", "Email", "Role", "Last Login", "Status", "Actions"].map((h) => (
+                  {[t.admin.colUsername, t.admin.colEmail, t.admin.colRole, t.admin.colLastLogin, t.admin.colStatusUser, t.admin.colActions].map((h) => (
                     <th
                       key={h}
                       style={{
@@ -1331,7 +1344,7 @@ function UserManagementSection() {
                       </span>
                     </td>
                     <td style={{ padding: "10px 12px", fontSize: 11, color: "var(--text-muted)" }}>
-                      {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : "Never"}
+                      {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : t.admin.never}
                     </td>
                     <td style={{ padding: "10px 12px" }}>
                       <span
@@ -1345,7 +1358,7 @@ function UserManagementSection() {
                         }}
                       >
                         <Circle size={7} fill={user.isActive ? "var(--success)" : "var(--text-dim)"} stroke="none" />
-                        {user.isActive ? "Active" : "Inactive"}
+                        {user.isActive ? t.admin.userActive : t.admin.userInactive}
                       </span>
                     </td>
                     <td style={{ padding: "10px 12px" }}>
@@ -1357,13 +1370,13 @@ function UserManagementSection() {
                           title={`Switch to ${user.role === "admin" ? "user" : "admin"}`}
                         >
                           <Shield size={11} />
-                          {user.role === "admin" ? "Demote" : "Promote"}
+                          {user.role === "admin" ? t.admin.demote : t.admin.promote}
                         </button>
                         <button
                           className="btn-ghost"
                           style={{ fontSize: 10, padding: "3px 8px", color: "var(--error)" }}
                           onClick={() => {
-                            if (confirm(`Remove user ${user.username}?`)) {
+                            if (confirm(t.admin.removeUserConfirm.replace("{username}", user.username))) {
                               removeUser(user.id);
                             }
                           }}
@@ -1389,6 +1402,8 @@ function UserManagementSection() {
 /* ═══════════════════════════════════════════════════════════ */
 
 function DevToolsSection() {
+  const language = useLauncherStore(s => s.language);
+  const t = getTranslations(language);
   const [runtimes, setRuntimes] = useState<RuntimeInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [envSearch, setEnvSearch] = useState("");
@@ -1418,8 +1433,8 @@ function DevToolsSection() {
   return (
     <div className="animate-fadeIn">
       <SectionHeader
-        title="Developer Tools"
-        description="Runtime detection, environment diagnostics, and development utilities."
+        title={t.admin.devToolsTitle}
+        description={t.admin.devToolsDesc}
       />
 
       {/* Detected runtimes */}
@@ -1435,7 +1450,7 @@ function DevToolsSection() {
           }}
         >
           <Terminal size={15} />
-          Detected Runtimes
+          {t.admin.detectedRuntimes}
         </h3>
         {loading ? (
           <p
@@ -1444,7 +1459,7 @@ function DevToolsSection() {
               color: "var(--text-muted)",
             }}
           >
-            Detecting installed runtimes...
+            {t.admin.detectingRuntimes}
           </p>
         ) : (
           <div
@@ -1507,7 +1522,7 @@ function DevToolsSection() {
                       : "var(--text-dim)",
                   }}
                 >
-                  {rt.version ?? "Not installed"}
+                  {rt.version ?? t.admin.notInstalled}
                 </div>
                 {rt.path && (
                   <div
@@ -1551,7 +1566,7 @@ function DevToolsSection() {
             }}
           >
             <FileJson size={15} />
-            Environment Variables
+            {t.admin.envVars}
           </h3>
           <button
             className="btn-ghost"
@@ -1568,7 +1583,7 @@ function DevToolsSection() {
             ) : (
               <Eye size={12} />
             )}
-            {showEnv ? "Hide" : "Show"}
+            {showEnv ? t.admin.hide : t.admin.show}
           </button>
         </div>
 
@@ -1579,7 +1594,7 @@ function DevToolsSection() {
                 type="text"
                 value={envSearch}
                 onChange={(e) => setEnvSearch(e.target.value)}
-                placeholder="Filter variables..."
+                placeholder={t.admin.filterVars}
                 style={{
                   width: "100%",
                   padding: "8px 12px",
@@ -1632,7 +1647,7 @@ function DevToolsSection() {
                 ))}
               {envVars.length === 0 && (
                 <p style={{ color: "var(--text-muted)", fontSize: 11, padding: "8px 0" }}>
-                  No environment variables available.
+                  {t.admin.noEnvVars}
                 </p>
               )}
             </div>
@@ -1653,7 +1668,7 @@ function DevToolsSection() {
           }}
         >
           <Zap size={15} />
-          Quick Actions
+          {t.admin.quickActions}
         </h3>
         <div
           style={{
@@ -1671,7 +1686,7 @@ function DevToolsSection() {
             }}
           >
             <FolderOpen size={13} />
-            Open Data Directory
+            {t.admin.openDataDir}
           </button>
           <button
             className="btn-secondary"
@@ -1683,7 +1698,7 @@ function DevToolsSection() {
             }}
           >
             <GitBranch size={13} />
-            Open GitHub
+            {t.admin.openGithub}
           </button>
         </div>
       </AdminCard>
@@ -1696,6 +1711,8 @@ function DevToolsSection() {
 /* ═══════════════════════════════════════════════════════════ */
 
 function MaintenanceSection() {
+  const language = useLauncherStore(s => s.language);
+  const t = getTranslations(language);
   const [clearing, setClearing] = useState(false);
   const [clearResult, setClearResult] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -1710,10 +1727,10 @@ function MaintenanceSection() {
     try {
       const result = await window.electronAPI?.clearCache();
       setClearResult(
-        `Cleared ${result?.cleared ?? 0} cached files.`
+        t.admin.cacheCleared.replace("{n}", String(result?.cleared ?? 0))
       );
     } catch {
-      setClearResult("Failed to clear cache.");
+      setClearResult(t.admin.cacheClearFailed);
     } finally {
       setClearing(false);
     }
@@ -1726,10 +1743,10 @@ function MaintenanceSection() {
       if (json) {
         // Copy to clipboard
         await navigator.clipboard.writeText(json);
-        setClearResult("Configuration copied to clipboard!");
+        setClearResult(t.admin.exportSuccess);
       }
     } catch {
-      setClearResult("Failed to export configuration.");
+      setClearResult(t.admin.exportFailed);
     } finally {
       setExporting(false);
     }
@@ -1745,12 +1762,12 @@ function MaintenanceSection() {
           await window.electronAPI?.importConfig(text);
         setImportResult(
           ok
-            ? "Configuration imported successfully! Restart to apply."
-            : "Invalid configuration format."
+            ? t.admin.importSuccess
+            : t.admin.importInvalid
         );
       }
     } catch {
-      setImportResult("Failed to read from clipboard.");
+      setImportResult(t.admin.importFailed);
     } finally {
       setImporting(false);
     }
@@ -1772,8 +1789,8 @@ function MaintenanceSection() {
   return (
     <div className="animate-fadeIn">
       <SectionHeader
-        title="Maintenance"
-        description="Cache management, configuration backup, and launcher diagnostics."
+        title={t.admin.maintenanceTitle}
+        description={t.admin.maintenanceDesc}
       />
 
       {/* Cache */}
@@ -1789,7 +1806,7 @@ function MaintenanceSection() {
           }}
         >
           <Trash2 size={15} />
-          Cache Management
+          {t.admin.cacheMgmt}
         </h3>
         <p
           style={{
@@ -1798,8 +1815,7 @@ function MaintenanceSection() {
             marginBottom: 14,
           }}
         >
-          Clear temporary files, download cache, and code
-          cache to free up disk space.
+          {t.admin.cacheMgmtDesc}
         </p>
         <div
           style={{
@@ -1820,7 +1836,7 @@ function MaintenanceSection() {
             disabled={clearing}
           >
             <Trash2 size={13} />
-            {clearing ? "Clearing..." : "Clear All Caches"}
+            {clearing ? t.admin.clearingCaches : t.admin.clearAllCaches}
           </button>
           {clearResult && (
             <span
@@ -1855,7 +1871,7 @@ function MaintenanceSection() {
           }}
         >
           <FileJson size={15} />
-          Configuration Backup
+          {t.admin.configBackup}
         </h3>
         <p
           style={{
@@ -1864,8 +1880,7 @@ function MaintenanceSection() {
             marginBottom: 14,
           }}
         >
-          Export your launcher configuration to clipboard or
-          import from clipboard.
+          {t.admin.configBackupDesc}
         </p>
         <div
           style={{
@@ -1882,8 +1897,8 @@ function MaintenanceSection() {
           >
             <Download size={13} />
             {exporting
-              ? "Exporting..."
-              : "Export to Clipboard"}
+              ? t.admin.exporting
+              : t.admin.exportToClipboard}
           </button>
           <button
             className="btn-secondary"
@@ -1893,15 +1908,15 @@ function MaintenanceSection() {
           >
             <Upload size={13} />
             {importing
-              ? "Importing..."
-              : "Import from Clipboard"}
+              ? t.admin.importing
+              : t.admin.importFromClipboard}
           </button>
         </div>
         {importResult && (
           <p
             style={{
               fontSize: 12,
-              color: importResult.includes("success")
+              color: importResult === t.admin.importSuccess
                 ? "var(--success)"
                 : "var(--warning)",
               marginTop: 10,
@@ -1932,14 +1947,14 @@ function MaintenanceSection() {
             }}
           >
             <Activity size={15} />
-            Launcher Logs
+            {t.admin.launcherLogs}
           </h3>
           <button
             className="btn-ghost"
             style={{ fontSize: 11 }}
             onClick={handleLoadLogs}
           >
-            {showLogs ? "Hide" : "Show Logs"}
+            {showLogs ? t.admin.hideLogs : t.admin.showLogs}
           </button>
         </div>
 
@@ -1960,8 +1975,7 @@ function MaintenanceSection() {
                   color: "var(--text-muted)",
                 }}
               >
-                No logs recorded yet. Logs are captured
-                while the launcher is running.
+                {t.admin.noLogs}
               </p>
             ) : (
               logs.map((log, i) => (
@@ -2026,6 +2040,8 @@ function MaintenanceSection() {
 /* ═══════════════════════════════════════════════════════════ */
 
 function SecuritySection() {
+  const language = useLauncherStore(s => s.language);
+  const t = getTranslations(language);
   const [adminLock, setAdminLockLocal] = useState(false);
   const [confirmDestructive, setConfirmDestructiveLocal] = useState(false);
   const [restrictPaths, setRestrictPathsLocal] = useState(false);
@@ -2083,8 +2099,8 @@ function SecuritySection() {
   return (
     <div className="animate-fadeIn">
       <SectionHeader
-        title="Access & Security"
-        description="Control who can access admin features and restrict launcher behavior."
+        title={t.admin.securityTitle}
+        description={t.admin.securityDesc}
       />
 
       {/* Admin lock */}
@@ -2100,12 +2116,12 @@ function SecuritySection() {
           }}
         >
           <Shield size={15} />
-          Admin Protection
+          {t.admin.adminProtection}
         </h3>
 
         <SettingRow
-          label="Lock admin panel"
-          description="Require confirmation before accessing admin settings"
+          label={t.admin.lockAdmin}
+          description={t.admin.lockAdminDesc}
         >
           <Toggle
             enabled={adminLock}
@@ -2114,8 +2130,8 @@ function SecuritySection() {
         </SettingRow>
 
         <SettingRow
-          label="Confirm destructive actions"
-          description="Show a confirmation dialog before clearing caches or importing configs"
+          label={t.admin.confirmDestructive}
+          description={t.admin.confirmDestructiveDesc}
         >
           <Toggle
             enabled={confirmDestructive}
@@ -2126,8 +2142,8 @@ function SecuritySection() {
         </SettingRow>
 
         <SettingRow
-          label="Developer mode"
-          description="Enable developer features like version bumping, git status, and project scanning"
+          label={t.admin.developerMode}
+          description={t.admin.developerModeDesc}
         >
           <Toggle
             enabled={devMode}
@@ -2149,7 +2165,7 @@ function SecuritySection() {
           }}
         >
           <FolderOpen size={15} />
-          Path Restrictions
+          {t.admin.pathRestrictions}
         </h3>
         <p
           style={{
@@ -2158,13 +2174,12 @@ function SecuritySection() {
             marginBottom: 14,
           }}
         >
-          Restrict which directories the launcher can access
-          for scanning and launching applications.
+          {t.admin.pathRestrictionsDesc}
         </p>
 
         <SettingRow
-          label="Enable path restrictions"
-          description="Only allow apps from specified directories"
+          label={t.admin.enablePathRestrictions}
+          description={t.admin.enablePathRestrictionsDesc}
         >
           <Toggle
             enabled={restrictPaths}
@@ -2213,8 +2228,7 @@ function SecuritySection() {
                   padding: "8px 0",
                 }}
               >
-                No paths added — all directories are
-                currently blocked.
+                {t.admin.noPaths}
               </p>
             ) : (
               <div
@@ -2282,7 +2296,7 @@ function SecuritySection() {
           }}
         >
           <AlertTriangle size={15} />
-          Danger Zone
+          {t.admin.dangerZone}
         </h3>
         <p
           style={{
@@ -2291,8 +2305,7 @@ function SecuritySection() {
             marginBottom: 14,
           }}
         >
-          Irreversible actions that affect your entire
-          launcher state. Proceed with caution.
+          {t.admin.dangerZoneDesc}
         </p>
         <div style={{ display: "flex", gap: 8 }}>
           <button
@@ -2306,7 +2319,7 @@ function SecuritySection() {
             onClick={async () => {
               if (
                 confirm(
-                  "Reset all launcher settings to defaults? This cannot be undone."
+                  t.admin.resetConfirm
                 )
               ) {
                 await window.electronAPI?.resetLauncher();
@@ -2316,7 +2329,7 @@ function SecuritySection() {
             }}
           >
             <RefreshCw size={13} />
-            Reset Launcher
+            {t.admin.resetLauncher}
           </button>
         </div>
       </AdminCard>
