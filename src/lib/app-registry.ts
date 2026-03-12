@@ -623,6 +623,67 @@ export const APP_REGISTRY: AppDefinition[] = [
       },
     ],
   },
+
+  // ── InterChat ──────────────────────────────────────────────
+  {
+    id: "interchat",
+    name: "InterChat",
+    slug: "interchat",
+    description: "Peer-to-peer chat — talk directly with friends via IP",
+    longDescription:
+      "InterChat is a Discord-like chat application where users communicate directly " +
+      "over IP. Create servers with text channels, share your IP with friends, and chat " +
+      "in real-time via WebSocket. No central server needed — your machine is the server. " +
+      "Features typing indicators, member lists, message persistence, and full English " +
+      "and German localization.",
+    vendor: "Avosos",
+    version: "0.1.0",
+    availableVersions: ["0.1.0"],
+    category: "social",
+    tags: [
+      "chat",
+      "messenger",
+      "p2p",
+      "peer-to-peer",
+      "websocket",
+      "discord",
+      "electron",
+      "i18n",
+    ],
+    icon: "interchat",
+    installed: false,
+    repoUrl: "https://github.com/Avosos/interchat",
+    launchScript: "dev:electron",
+    size: "68 MB",
+    lastUpdated: Date.now(),
+    autoUpdate: true,
+    plugins: [
+      {
+        id: "ic-p2p",
+        name: "P2P Networking",
+        version: "1.0.0",
+        installed: true,
+        description:
+          "WebSocket-based peer-to-peer messaging with no central server dependency",
+      },
+      {
+        id: "ic-i18n",
+        name: "Internationalization",
+        version: "1.0.0",
+        installed: true,
+        description:
+          "Full English and German language support with instant UI switching",
+      },
+    ],
+    compatibility: [
+      {
+        appVersion: "0.1.0",
+        os: ["win32", "darwin", "linux"],
+        minRam: 512 * 1024 * 1024,
+        notes: "Requires network access. Messages stored locally as JSON.",
+      },
+    ],
+  },
 ];
 
 export const CATEGORY_META: Record<
