@@ -368,6 +368,81 @@ export const useLauncherStore = create<LauncherState>((set, get) => ({
     await get().checkInstallStatus();
   },
 
+  /* Dependency management */
+  outdatedPackages: {},
+  updatingDeps: new Set(),
+
+  checkOutdated: async (id) => {
+    const app = get().apps.find((a) => a.id === id);
+    if (!app) return;
+    const appPath = app.installPath || app.sourcePath;
+    if (!appPath) return;
+
+    try {
+      const result = await window.electronAPI?.checkOutdated(appPath);
+      if (result && !result.error) {
+        set((s) => ({
+          outdatedPackages: { ...s.outdatedPackages, [id]: result.outdated },
+        }));
+      }
+    } catch { /* ignore */ }
+  },
+
+  updateDeps: async (id) => {
+    const app = get().apps.find((a) => a.id === id);
+    if (!app) return false;
+    const appPath = app.installPath || app.sourcePath;
+    if (!appPath) return false;
+
+    set((s) => {
+      const next = new Set(s.updatingDeps);
+      next.add(id);
+      return { updatingDeps: next };
+    });
+
+    const notifId = get().addNotification({
+      type: "update",
+      title: `Updating ${app.name} dependencies`,
+      message: "Running npm update…",
+      appId: id,
+      progress: 0,
+      persistent: true,
+    });
+
+    try {
+      const result = await window.electronAPI?.updateDeps(id, appPath);
+      if (result?.success) {
+        get().updateNotificationProgress(notifId, 100, `${app.name} dependencies updated`);
+        get().addNotification({
+          type: "update",
+          title: `${app.name} Updated`,
+          message: "Dependencies updated successfully.",
+          appId: id,
+        });
+        // Re-check outdated
+        await get().checkOutdated(id);
+
+        set((s) => {
+          const next = new Set(s.updatingDeps);
+          next.delete(id);
+          return { updatingDeps: next };
+        });
+        return true;
+      }
+
+      get().updateNotificationProgress(notifId, -1, `Failed to update ${app.name}`);
+    } catch (err) {
+      get().updateNotificationProgress(notifId, -1, `Error updating ${app.name}`);
+    }
+
+    set((s) => {
+      const next = new Set(s.updatingDeps);
+      next.delete(id);
+      return { updatingDeps: next };
+    });
+    return false;
+  },
+
   /* Appearance */
   theme: "dark" as "dark" | "light" | "grey",
   accentColor: "#7c5cfc",

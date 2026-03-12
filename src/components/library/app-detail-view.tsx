@@ -33,7 +33,7 @@ import { CATEGORY_META } from "@/lib/app-registry";
 import AppIcon from "@/components/icons/app-icon";
 import type { AppPlugin, ChangelogEntry } from "@/types";
 
-type DetailTab = "overview" | "versions" | "plugins" | "compatibility" | "changelog";
+type DetailTab = "overview" | "versions" | "plugins" | "compatibility" | "changelog" | "dependencies";
 
 export default function AppDetailView() {
   const { selectedAppId, apps, setView, launchApp, installApp, uninstallApp, language } = useLauncherStore();
@@ -299,6 +299,7 @@ export default function AppDetailView() {
               { id: "changelog", label: t.appDetail.tabChangelog, icon: History },
               { id: "versions", label: t.appDetail.tabVersions, icon: GitBranch },
               { id: "plugins", label: t.appDetail.tabPlugins, icon: Puzzle },
+              { id: "dependencies", label: "Dependencies", icon: RefreshCw },
               { id: "compatibility", label: t.appDetail.tabCompatibility, icon: Shield },
             ] as const
           ).map((tab) => {
@@ -378,6 +379,7 @@ export default function AppDetailView() {
           />
         )}
         {activeTab === "plugins" && <PluginsTab app={app} />}
+        {activeTab === "dependencies" && <DependenciesTab app={app} />}
         {activeTab === "compatibility" && <CompatibilityTab app={app} />}
       </div>
     </div>
