@@ -11,6 +11,7 @@ import TrackemIcon from "./trackem-icon";
 import AppliviewIcon from "./appliview-icon";
 import EurobarIcon from "./eurobar-icon";
 import LibreIcon from "./libre-icon";
+import InterchatIcon from "./interchat-icon";
 import { Box } from "lucide-react";
 
 const ICON_MAP: Record<string, React.FC<{ size?: number }>> = {
@@ -24,6 +25,7 @@ const ICON_MAP: Record<string, React.FC<{ size?: number }>> = {
   appliview: AppliviewIcon,
   eurobar: EurobarIcon,
   libre: LibreIcon,
+  interchat: InterchatIcon,
 };
 
 /**
