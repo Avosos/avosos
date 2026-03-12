@@ -364,6 +364,47 @@ declare global {
       addUser: (user: { username: string; email?: string; role: import("@/types").UserRole }) => Promise<import("@/types").LauncherUser>;
       removeUser: (userId: string) => Promise<boolean>;
       updateUserRole: (userId: string, role: import("@/types").UserRole) => Promise<boolean>;
+
+      // Dependency management
+      checkOutdated: (appPath: string) => Promise<OutdatedResult>;
+      updateDeps: (appId: string, appPath: string) => Promise<{ success: boolean; output?: string; error?: string }>;
+      auditFix: (appId: string, appPath: string) => Promise<{ success: boolean; output?: string; error?: string }>;
+      installPackage: (pkgPath: string) => Promise<{ success: boolean; installPath?: string; manifest?: AvososManifest; error?: string }>;
+      onDepsProgress: (callback: (data: { appId: string; stage: string; detail: string }) => void) => () => void;
     };
   }
+}
+
+/* ─── Dependency Management ──────────────────────────────── */
+export interface OutdatedPackage {
+  name: string;
+  current: string;
+  wanted: string;
+  latest: string;
+  type: string;
+}
+
+export interface OutdatedResult {
+  outdated: OutdatedPackage[];
+  error: string | null;
+}
+
+/* ─── Avosos Package Manifest ────────────────────────────── */
+export interface AvososManifest {
+  name: string;
+  displayName: string;
+  version: string;
+  description: string;
+  platform: "win" | "mac" | "linux";
+  arch: string;
+  type: "electron" | "rust" | "node";
+  launch: {
+    command: string;
+    args: string[];
+    cwd: string;
+  };
+  size: number;
+  buildDate: string;
+  compilerVersion: string;
+  icon?: string;
 }

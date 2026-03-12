@@ -138,6 +138,12 @@ interface LauncherState {
   uninstallApp: (id: string) => Promise<boolean>;
   checkInstallStatus: () => Promise<void>;
 
+  /* Dependency management */
+  checkOutdated: (id: string) => Promise<void>;
+  updateDeps: (id: string) => Promise<boolean>;
+  outdatedPackages: Record<string, import("@/types").OutdatedPackage[]>;
+  updatingDeps: Set<string>;
+
   /* Install directory */
   installDir: string;
   setInstallDir: (dir: string) => Promise<void>;

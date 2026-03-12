@@ -1224,6 +1224,198 @@ ipcMain.handle("app:checkForUpdates", async (_event, { appId }) => {
   return { appId, updateAvailable: false, currentVersion: "1.0.0" };
 });
 
+// ─── Dependency management ────────────────────────────────
+
+/** Check for outdated npm packages in an installed app */
+ipcMain.handle("app:checkOutdated", async (_event, { appPath }) => {
+  if (!appPath || !fs.existsSync(path.join(appPath, "package.json"))) {
+    return { outdated: [], error: null };
+  }
+
+  return new Promise((resolve) => {
+    const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
+    const proc = spawn(npmCmd, ["outdated", "--json"], {
+      cwd: appPath,
+      stdio: ["ignore", "pipe", "pipe"],
+      shell: true,
+    });
+
+    let stdout = "";
+    let stderr = "";
+    proc.stdout.on("data", (chunk) => (stdout += chunk));
+    proc.stderr.on("data", (chunk) => (stderr += chunk));
+
+    proc.on("close", () => {
+      try {
+        // npm outdated returns exit code 1 when there are outdated packages
+        const data = stdout.trim() ? JSON.parse(stdout) : {};
+        const outdated = Object.entries(data).map(([name, info]) => ({
+          name,
+          current: info.current,
+          wanted: info.wanted,
+          latest: info.latest,
+          type: info.type || "dependencies",
+        }));
+        resolve({ outdated, error: null });
+      } catch {
+        resolve({ outdated: [], error: stderr || "Failed to parse npm outdated output" });
+      }
+    });
+
+    proc.on("error", (err) => {
+      resolve({ outdated: [], error: err.message });
+    });
+  });
+});
+
+/** Update npm packages in an installed app */
+ipcMain.handle("app:updateDeps", async (_event, { appId, appPath }) => {
+  if (!appPath || !fs.existsSync(path.join(appPath, "package.json"))) {
+    return { success: false, error: "No package.json found" };
+  }
+
+  const sendProgress = (stage, detail = "") => {
+    try {
+      mainWindow?.webContents?.send("deps:progress", { appId, stage, detail });
+    } catch { /* noop */ }
+  };
+
+  return new Promise((resolve) => {
+    sendProgress("updating", "Running npm update…");
+    const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
+    const proc = spawn(npmCmd, ["update"], {
+      cwd: appPath,
+      stdio: ["ignore", "pipe", "pipe"],
+      shell: true,
+    });
+
+    let output = "";
+    proc.stdout.on("data", (chunk) => {
+      const line = chunk.toString().trim();
+      if (line) {
+        output += line + "\n";
+        sendProgress("updating", line);
+      }
+    });
+    proc.stderr.on("data", (chunk) => {
+      const line = chunk.toString().trim();
+      if (line) {
+        output += line + "\n";
+        sendProgress("updating", line);
+      }
+    });
+
+    proc.on("close", (code) => {
+      if (code === 0) {
+        sendProgress("done", "Dependencies updated successfully");
+        resolve({ success: true, output });
+      } else {
+        sendProgress("error", `npm update failed (exit code ${code})`);
+        resolve({ success: false, error: output });
+      }
+    });
+
+    proc.on("error", (err) => {
+      sendProgress("error", err.message);
+      resolve({ success: false, error: err.message });
+    });
+  });
+});
+
+/** Run npm audit fix on an installed app */
+ipcMain.handle("app:auditFix", async (_event, { appId, appPath }) => {
+  if (!appPath || !fs.existsSync(path.join(appPath, "package.json"))) {
+    return { success: false, error: "No package.json found" };
+  }
+
+  return new Promise((resolve) => {
+    const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
+    const proc = spawn(npmCmd, ["audit", "fix"], {
+      cwd: appPath,
+      stdio: ["ignore", "pipe", "pipe"],
+      shell: true,
+    });
+
+    let output = "";
+    proc.stdout.on("data", (chunk) => (output += chunk));
+    proc.stderr.on("data", (chunk) => (output += chunk));
+
+    proc.on("close", (code) => {
+      resolve({ success: code === 0, output });
+    });
+
+    proc.on("error", (err) => {
+      resolve({ success: false, error: err.message });
+    });
+  });
+});
+
+/** Install an .avpkg package file */
+ipcMain.handle("app:installPackage", async (_event, { pkgPath }) => {
+  const sendProgress = (stage, detail = "") => {
+    try {
+      mainWindow?.webContents?.send("install:progress", { appId: "avpkg", stage, detail });
+    } catch { /* noop */ }
+  };
+
+  if (!fs.existsSync(pkgPath)) {
+    return { success: false, error: "Package file not found" };
+  }
+
+  const installDir = getInstallDir();
+
+  try {
+    // Extract the zip to a temp location to read the manifest
+    const tempDir = path.join(installDir, "__avpkg_temp_" + Date.now());
+    fs.mkdirSync(tempDir, { recursive: true });
+
+    sendProgress("extracting", "Extracting package…");
+    await extractZip(pkgPath, tempDir);
+
+    // Read manifest
+    const manifestPath = path.join(tempDir, "avosos.json");
+    if (!fs.existsSync(manifestPath)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+      return { success: false, error: "Invalid .avpkg: no avosos.json manifest found" };
+    }
+
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
+    const appDir = path.join(installDir, manifest.name);
+
+    // If already installed, remove old version
+    if (fs.existsSync(appDir)) {
+      sendProgress("replacing", "Removing previous version…");
+      fs.rmSync(appDir, { recursive: true, force: true });
+    }
+
+    // Move app/ contents to the install directory
+    const appContent = path.join(tempDir, "app");
+    if (fs.existsSync(appContent)) {
+      fs.renameSync(appContent, appDir);
+    } else {
+      // No app/ subdirectory — move everything (excluding manifest)
+      fs.renameSync(tempDir, appDir);
+    }
+
+    // Copy manifest into the app directory
+    fs.copyFileSync(manifestPath, path.join(appDir, "avosos.json"));
+
+    // Clean up temp
+    if (fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+
+    sendProgress("done", `${manifest.displayName || manifest.name} installed`);
+    return {
+      success: true,
+      installPath: appDir,
+      manifest,
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 app.whenReady().then(createWindow);
 
 app.on("window-all-closed", () => {

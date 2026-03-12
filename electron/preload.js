@@ -111,4 +111,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   // Updates
   checkForUpdates: () => ipcRenderer.invoke("app:checkForUpdates"),
+
+  // Dependency management
+  checkOutdated: (appPath) => ipcRenderer.invoke("app:checkOutdated", { appPath }),
+  updateDeps: (appId, appPath) => ipcRenderer.invoke("app:updateDeps", { appId, appPath }),
+  auditFix: (appId, appPath) => ipcRenderer.invoke("app:auditFix", { appId, appPath }),
+  installPackage: (pkgPath) => ipcRenderer.invoke("app:installPackage", { pkgPath }),
+
+  onDepsProgress: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on("deps:progress", handler);
+    return () => ipcRenderer.removeListener("deps:progress", handler);
+  },
 });
