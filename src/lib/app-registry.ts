@@ -555,6 +555,74 @@ export const APP_REGISTRY: AppDefinition[] = [
       },
     ],
   },
+
+  // ── Libre ──────────────────────────────────────────────────
+  {
+    id: "libre",
+    name: "Libre",
+    slug: "libre",
+    description: "Universal game & app launcher with library management",
+    longDescription:
+      "Libre is a beautiful desktop game and application launcher — a hybrid of " +
+      "Modrinth, CurseForge, Steam, and Playnite. Build a personal library of games, " +
+      "apps, tools, and any executables. Features grid & list views, custom banners " +
+      "and icons, playtime tracking, directory scanning, collections, categories, " +
+      "and a polished dark UI with full English and German localization.",
+    vendor: "Avosos",
+    version: "0.1.0",
+    availableVersions: ["0.1.0"],
+    category: "entertainment",
+    tags: [
+      "launcher",
+      "games",
+      "library",
+      "playtime",
+      "collections",
+      "electron",
+      "i18n",
+    ],
+    icon: "libre",
+    installed: false,
+    repoUrl: "https://github.com/Avosos/libre",
+    launchScript: "dev:electron",
+    size: "85 MB",
+    lastUpdated: Date.now(),
+    autoUpdate: true,
+    plugins: [
+      {
+        id: "lb-playtime",
+        name: "Playtime Tracker",
+        version: "1.0.0",
+        installed: true,
+        description:
+          "Automatically track play time, launch count, and last-played timestamps",
+      },
+      {
+        id: "lb-scanner",
+        name: "Directory Scanner",
+        version: "1.0.0",
+        installed: true,
+        description:
+          "Scan folders for executables and batch-import them into your library",
+      },
+      {
+        id: "lb-collections",
+        name: "Collections",
+        version: "1.0.0",
+        installed: true,
+        description:
+          "Organize library items into custom color-coded collections",
+      },
+    ],
+    compatibility: [
+      {
+        appVersion: "0.1.0",
+        os: ["win32", "darwin", "linux"],
+        minRam: 512 * 1024 * 1024,
+        notes: "Data stored locally as JSON; supports importing executables from any path",
+      },
+    ],
+  },
 ];
 
 export const CATEGORY_META: Record<
